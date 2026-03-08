@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Extraer enlaces → Generar TXT para descargar</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      max-width: 1000px;
+      margin: 40px auto;
+      padding: 0 20px;
+      background: #f9fafb;
+      color: #111827;
+      line-height: 1.6;
+    }
+    h1 {
+      color: #1e40af;
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    .container {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    p {
+      margin-bottom: 1.5rem;
+      color: #4b5563;
+    }
+    input[type="file"] {
+      margin: 1.5rem 0;
+      padding: 0.5rem;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 0.9rem 2rem;
+      border-radius: 8px;
+      font-size: 1.05rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #1d4ed8;
+    }
+    #status {
+      margin: 1.2rem 0;
+      font-weight: 500;
+      min-height: 1.4em;
+    }
+    .success { color: #15803d; }
+    .warning { color: #b45309; }
+    .error   { color: #b91c1c; }
+    #preview {
+      margin-top: 1.5rem;
+      padding: 1.2rem;
+      background: #f1f5f9;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 0.94rem;
+      max-height: 340px;
+      overflow-y: auto;
+      line-height: 1.5;
+    }
+    .small-note {
+      font-size: 0.9rem;
+      color: #6b7280;
+      margin-top: 2rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Extraer enlaces y generar archivo TXT</h1>
+
+  <p>
+    Sube un archivo .txt (puede contener enlaces desordenados, mensajes, etc.)<br>
+    → detecta los enlaces → genera un archivo con formato:
+  </p>
+  <pre style="background:#f3f4f6; padding:12px; border-radius:6px; font-size:0.9rem;">
+[YouTube] https://youtube.com/watch?v=...
+2025-03-07
+
+[Imagen] https://i.imgur.com/abc123.jpg
+2025-03-07
+
+[Video] https://...
+2025-03-07
+  </pre>
+
+  <input type="file" id="fileInput" accept=".txt,text/plain">
+
+  <button onclick="procesarArchivo()">Procesar y descargar TXT</button>
+
+  <div id="status"></div>
+
+  <div id="preview"></div>
+
+  <div class="small-note">
+    Funciona completamente en tu navegador • sin subir nada a internet
+  </div>
+</div>
+
+<script>
+// ────────────────────────────────────────────────
+// Clasificación básica de enlaces
+// ────────────────────────────────────────────────
+const clasificacion = {
+  'youtube.com':       'YouTube',
+  'youtu.be':          'YouTube',
+  'twitter.com':       'Twitter / X',
+  'x.com':             'Twitter / X',
+  'tiktok.com':        'TikTok',
+  'instagram.com':     'Instagram',
+  'fb.watch':          'Facebook Video',
+  'imgur.com':         'Imagen (imgur)',
+  '.jpg':   'Imagen',
+  '.jpeg':  'Imagen',
+  '.png':   'Imagen',
+  '.gif':   'GIF / Imagen',
+  '.webp':  'Imagen',
+  '.mp4':   'Video',
+  '.webm':  'Video',
+  '.mov':   'Video',
+  '.pdf':   'PDF',
+  'drive.google.com':  'Google Drive',
+  'mega.nz':           'MEGA',
+};
+
+function detectarTipo(url) {
+  try {
+    const u = new URL(url.toLowerCase());
+    const hostname = u.hostname;
+    const pathname = u.pathname;
+
+    // Coincidencia por dominio
+    for (const clave in clasificacion) {
+      if (hostname.includes(clave) || pathname.endsWith(clave)) {
+        return clasificacion[clave];
+      }
+    }
+
+    // Coincidencia por extensión
+    const extensionesImagen = /\.(jpe?g|png|gif|webp|bmp)$/i;
+    const extensionesVideo  = /\.(mp4|webm|mov|avi|mkv)$/i;
+
+    if (extensionesImagen.test(pathname)) return 'Imagen';
+    if (extensionesVideo.test(pathname))  return 'Video';
+
+    return 'Enlace';
+  } catch {
+    return 'Inválido';
+  }
+}
+
+// ────────────────────────────────────────────────
+// Formato de fecha (YYYY-MM-DD)
+// ────────────────────────────────────────────────
+function obtenerFechaHoy() {
+  const ahora = new Date();
+  const año  = ahora.getFullYear();
+  const mes  = String(ahora.getMonth() + 1).padStart(2, '0');
+  const dia  = String(ahora.getDate()).padStart(2, '0');
+  return `${año}-${mes}-${dia}`;
+}
+
+// ────────────────────────────────────────────────
+// Extraer todos los enlaces http/https
+// ────────────────────────────────────────────────
+function extraerUrls(texto) {
+  const regex = /https?:\/\/[^\s<>"'()]+/gi;
+  const encontrados = texto.match(regex) || [];
+  // Eliminar duplicados
+  return [...new Set(encontrados)];
+}
+
+// ────────────────────────────────────────────────
+// Procesar archivo y generar descarga
+// ────────────────────────────────────────────────
+function procesarArchivo() {
+  const input    = document.getElementById('fileInput');
+  const status   = document.getElementById('status');
+  const preview  = document.getElementById('preview');
+
+  status.textContent = '';
+  preview.textContent = '';
+  status.className = '';
+
+  if (!input.files || input.files.length === 0) {
+    status.textContent = 'Selecciona un archivo .txt primero';
+    status.className = 'error';
+    return;
+  }
+
+  const archivo = input.files[0];
+  const lector = new FileReader();
+
+  lector.onload = function(e) {
+    const contenido = e.target.result;
+    const urls = extraerUrls(contenido);
+
+    if (urls.length === 0) {
+      status.textContent = 'No se encontraron enlaces en el archivo';
+      status.className = 'warning';
+      preview.textContent = '(vista previa vacía)';
+      return;
+    }
+
+    const fecha = obtenerFechaHoy();
+    let textoSalida = '';
+
+    urls.forEach(url => {
+      const tipo = detectarTipo(url);
+      textoSalida += `[${tipo}] ${url}\n${fecha}\n\n`;
+    });
+
+    // Mostrar vista previa
+    preview.textContent = textoSalida.trim();
+
+    // Preparar descarga
+    const blob = new Blob([textoSalida], { type: 'text/plain;charset=utf-8' });
+    const urlBlob = URL.createObjectURL(blob);
+
+    const enlaceDescarga = document.createElement('a');
+    enlaceDescarga.href = urlBlob;
+    enlaceDescarga.download = `enlaces_${fecha}.txt`;
+    document.body.appendChild(enlaceDescarga);
+    enlaceDescarga.click();
+
+    // Limpieza
+    document.body.removeChild(enlaceDescarga);
+    URL.revokeObjectURL(urlBlob);
+
+    status.textContent = `¡Archivo descargado! (${urls.length} enlaces encontrados)`;
+    status.className = 'success';
+  };
+
+  lector.onerror = function() {
+    status.textContent = 'Error al leer el archivo';
+    status.className = 'error';
+  };
+
+  lector.readAsText(archivo);
+}
+</script>
+</body>
+</html>
