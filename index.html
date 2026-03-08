@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Extraer enlaces múltiples → Un solo TXT - Lynox Hub</title>
+  <title>Extraer solo Imágenes, Videos y Discord - Lynox Hub</title>
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -108,15 +108,18 @@
 <body>
 
 <div class="container">
-  <h1>Extraer enlaces de varios archivos → Un solo TXT</h1>
+  <h1>Extraer solo Imágenes, Videos y enlaces de Discord</h1>
   <div class="by">Hecho por Lynox Hub</div>
   <div class="discord">
     Únete al Discord: <a href="https://discord.gg/spWx8vKT" target="_blank" class="discord-link">https://discord.gg/spWx8vKT</a>
   </div>
 
   <p>
-    Selecciona varios archivos .txt a la vez.<br>
-    Combina todos los enlaces (sin duplicados) y muestra el total recolectado al final.
+    Selecciona varios .txt → solo guarda enlaces de:<br>
+    • Imágenes (.jpg, .png, .gif, etc.)<br>
+    • Videos (.mp4, .webm, .mov, etc.)<br>
+    • Enlaces de Discord (discord.com / discordapp.com)<br>
+    Ignora todo lo demás (YouTube, Twitter, etc.)
   </p>
 
   <input type="file" id="fileInput" accept=".txt,text/plain" multiple>
@@ -125,7 +128,7 @@
     Archivos seleccionados: <span id="fileCount">0</span>
   </div>
 
-  <button onclick="procesarArchivos()">Procesar todos y descargar TXT</button>
+  <button onclick="procesarArchivos()">Procesar y descargar TXT</button>
 
   <div id="status"></div>
 
@@ -138,47 +141,37 @@
 </div>
 
 <script>
-// Clasificación de enlaces
-const clasificacion = {
-  'youtube.com':       'YouTube',
-  'youtu.be':          'YouTube',
-  'twitter.com':       'Twitter / X',
-  'x.com':             'Twitter / X',
-  'tiktok.com':        'TikTok',
-  'instagram.com':     'Instagram',
-  'fb.watch':          'Facebook Video',
-  'imgur.com':         'Imagen (imgur)',
-  '.jpg':   'Imagen',
-  '.jpeg':  'Imagen',
-  '.png':   'Imagen',
-  '.gif':   'GIF / Imagen',
-  '.webp':  'Imagen',
-  '.mp4':   'Video',
-  '.webm':  'Video',
-  '.mov':   'Video',
-  '.pdf':   'PDF',
-  'drive.google.com':  'Google Drive',
-  'mega.nz':           'MEGA',
+// Solo estas categorías se guardan
+const categoriasPermitidas = {
+  imagen: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'],
+  video:  ['.mp4', '.webm', '.mov', '.avi', '.mkv'],
+  discord: ['discord.com', 'discordapp.com', 'discord.gg']
 };
 
-function detectarTipo(url) {
+function esPermitido(url) {
   try {
     const u = new URL(url.toLowerCase());
     const hostname = u.hostname;
-    const pathname = u.pathname;
+    const pathname = u.pathname.toLowerCase();
 
-    for (const clave in clasificacion) {
-      if (hostname.includes(clave) || pathname.endsWith(clave)) {
-        return clasificacion[clave];
-      }
+    // Discord (cualquier subdominio o path)
+    if (categoriasPermitidas.discord.some(d => hostname.includes(d))) {
+      return 'Discord';
     }
 
-    if (/\.(jpe?g|png|gif|webp|bmp)$/i.test(pathname)) return 'Imagen';
-    if (/\.(mp4|webm|mov|avi|mkv)$/i.test(pathname))  return 'Video';
+    // Extensiones de imagen
+    if (categoriasPermitidas.imagen.some(ext => pathname.endsWith(ext))) {
+      return 'Imagen';
+    }
 
-    return 'Enlace';
+    // Extensiones de video
+    if (categoriasPermitidas.video.some(ext => pathname.endsWith(ext))) {
+      return 'Video';
+    }
+
+    return null; // no permitido
   } catch {
-    return 'Inválido';
+    return null;
   }
 }
 
@@ -222,10 +215,12 @@ async function procesarArchivos() {
     }
   }
 
-  const urlsUnicas = Array.from(todosUrls).filter(url => url.length > 10);
+  // Filtrar solo los permitidos
+  const urlsFiltradas = Array.from(todosUrls)
+    .filter(url => esPermitido(url) !== null);
 
-  if (urlsUnicas.length === 0) {
-    status.textContent = 'No se encontraron enlaces válidos';
+  if (urlsFiltradas.length === 0) {
+    status.textContent = 'No se encontraron imágenes, videos ni enlaces de Discord';
     status.className = 'warning';
     preview.textContent = '(vista previa vacía)';
     return;
@@ -233,39 +228,34 @@ async function procesarArchivos() {
 
   let textoSalida = '';
 
-  // Encabezado
-  textoSalida += `Total de enlaces únicos encontrados: ${urlsUnicas.length}\n`;
+  textoSalida += `Total de enlaces permitidos encontrados: ${urlsFiltradas.length}\n`;
   textoSalida += `Procesado desde ${input.files.length} archivo(s)\n\n`;
 
-  // Lista de enlaces
-  urlsUnicas.forEach(url => {
-    const tipo = detectarTipo(url);
+  urlsFiltradas.forEach(url => {
+    const tipo = esPermitido(url);
     textoSalida += `[${tipo}] ${url}\n\n`;
   });
 
-  // Pie con total recolectado y firma
   textoSalida += '──────────────────────────────\n';
-  textoSalida += `Total de enlaces recolectados: ${urlsUnicas.length}\n`;
+  textoSalida += `Total de enlaces recolectados: ${urlsFiltradas.length}\n`;
   textoSalida += 'Hecho por Lynox Hub\n';
   textoSalida += 'Discord: https://discord.gg/spWx8vKT\n';
 
-  // Vista previa
   preview.textContent = textoSalida.trim();
 
-  // Descarga
   const blob = new Blob([textoSalida], { type: 'text/plain;charset=utf-8' });
   const urlBlob = URL.createObjectURL(blob);
 
   const enlace = document.createElement('a');
   enlace.href = urlBlob;
-  enlace.download = 'enlaces_combinados.txt';
+  enlace.download = 'imagenes_videos_discord.txt';
   document.body.appendChild(enlace);
   enlace.click();
 
   document.body.removeChild(enlace);
   URL.revokeObjectURL(urlBlob);
 
-  status.textContent = `¡Descargado! (${urlsUnicas.length} enlaces recolectados)`;
+  status.textContent = `¡Descargado! (${urlsFiltradas.length} enlaces recolectados)`;
   status.className = 'success';
 }
 </script>
