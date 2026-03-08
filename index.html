@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Extraer enlaces → Generar TXT para descargar</title>
+  <title>Extraer enlaces - Lynox Hub</title>
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -17,7 +17,20 @@
     h1 {
       color: #1e40af;
       text-align: center;
-      margin-bottom: 1.5rem;
+      margin-bottom: 0.4rem;
+    }
+    .by {
+      text-align: center;
+      color: #4b5563;
+      font-size: 0.95rem;
+      margin-bottom: 1.2rem;
+    }
+    .discord {
+      text-align: center;
+      color: #5865F2;
+      font-weight: 600;
+      margin: 0.6rem 0 2rem 0;
+      font-size: 1.05rem;
     }
     .container {
       background: white;
@@ -62,55 +75,74 @@
       border-radius: 8px;
       white-space: pre-wrap;
       font-family: 'Consolas', 'Courier New', monospace;
-      font-size: 0.94rem;
+      font-size: 0.92rem;
       max-height: 340px;
       overflow-y: auto;
       line-height: 1.5;
     }
-    .small-note {
-      font-size: 0.9rem;
-      color: #6b7280;
-      margin-top: 2rem;
+    .footer {
       text-align: center;
+      margin-top: 2.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #e5e7eb;
+      color: #4b5563;
+      font-size: 0.95rem;
+    }
+    .discord-link {
+      color: #5865F2;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .discord-link:hover {
+      text-decoration: underline;
     }
   </style>
 </head>
 <body>
 
 <div class="container">
-  <h1>Extraer enlaces y generar archivo TXT</h1>
+  <h1>Extraer enlaces y generar TXT</h1>
+  <div class="by">Hecho por Lynox Hub</div>
+  <div class="discord">
+    Únete al Discord: <a href="https://discord.gg/spWx8vKT" target="_blank" class="discord-link">https://discord.gg/spWx8vKT</a>
+  </div>
 
   <p>
-    Sube un archivo .txt (puede contener enlaces desordenados, mensajes, etc.)<br>
-    → detecta los enlaces → genera un archivo con formato:
+    Sube tu archivo .txt → extrae enlaces → genera archivo con el mismo nombre + "_procesado"<br>
+    Formato generado:
   </p>
   <pre style="background:#f3f4f6; padding:12px; border-radius:6px; font-size:0.9rem;">
 [YouTube] https://youtube.com/watch?v=...
-2025-03-07
+2025-03-08
 
 [Imagen] https://i.imgur.com/abc123.jpg
-2025-03-07
+2025-03-08
 
 [Video] https://...
-2025-03-07
+2025-03-08
+
+──────────────────────────────
+Hecho por Lynox Hub
+Discord: https://discord.gg/spWx8vKT
   </pre>
 
   <input type="file" id="fileInput" accept=".txt,text/plain">
 
-  <button onclick="procesarArchivo()">Procesar y descargar TXT</button>
+  <button onclick="procesarArchivo()">Procesar y descargar</button>
 
   <div id="status"></div>
 
   <div id="preview"></div>
 
-  <div class="small-note">
-    Funciona completamente en tu navegador • sin subir nada a internet
+  <div class="footer">
+    Hecho por Lynox Hub • 
+    <a href="https://discord.gg/spWx8vKT" target="_blank" class="discord-link">Discord: https://discord.gg/spWx8vKT</a>
   </div>
 </div>
 
 <script>
 // ────────────────────────────────────────────────
-// Clasificación básica de enlaces
+// Clasificación de enlaces
 // ────────────────────────────────────────────────
 const clasificacion = {
   'youtube.com':       'YouTube',
@@ -140,19 +172,14 @@ function detectarTipo(url) {
     const hostname = u.hostname;
     const pathname = u.pathname;
 
-    // Coincidencia por dominio
     for (const clave in clasificacion) {
       if (hostname.includes(clave) || pathname.endsWith(clave)) {
         return clasificacion[clave];
       }
     }
 
-    // Coincidencia por extensión
-    const extensionesImagen = /\.(jpe?g|png|gif|webp|bmp)$/i;
-    const extensionesVideo  = /\.(mp4|webm|mov|avi|mkv)$/i;
-
-    if (extensionesImagen.test(pathname)) return 'Imagen';
-    if (extensionesVideo.test(pathname))  return 'Video';
+    if (/\.(jpe?g|png|gif|webp|bmp)$/i.test(pathname)) return 'Imagen';
+    if (/\.(mp4|webm|mov|avi|mkv)$/i.test(pathname))  return 'Video';
 
     return 'Enlace';
   } catch {
@@ -160,30 +187,19 @@ function detectarTipo(url) {
   }
 }
 
-// ────────────────────────────────────────────────
-// Formato de fecha (YYYY-MM-DD)
-// ────────────────────────────────────────────────
 function obtenerFechaHoy() {
   const ahora = new Date();
-  const año  = ahora.getFullYear();
-  const mes  = String(ahora.getMonth() + 1).padStart(2, '0');
-  const dia  = String(ahora.getDate()).padStart(2, '0');
-  return `${año}-${mes}-${dia}`;
+  return ahora.getFullYear() + '-' +
+         String(ahora.getMonth() + 1).padStart(2, '0') + '-' +
+         String(ahora.getDate()).padStart(2, '0');
 }
 
-// ────────────────────────────────────────────────
-// Extraer todos los enlaces http/https
-// ────────────────────────────────────────────────
 function extraerUrls(texto) {
   const regex = /https?:\/\/[^\s<>"'()]+/gi;
   const encontrados = texto.match(regex) || [];
-  // Eliminar duplicados
   return [...new Set(encontrados)];
 }
 
-// ────────────────────────────────────────────────
-// Procesar archivo y generar descarga
-// ────────────────────────────────────────────────
 function procesarArchivo() {
   const input    = document.getElementById('fileInput');
   const status   = document.getElementById('status');
@@ -200,6 +216,9 @@ function procesarArchivo() {
   }
 
   const archivo = input.files[0];
+  const nombreOriginal = archivo.name.replace(/\.txt$/i, '');
+  const nombreDescarga = nombreOriginal ? `${nombreOriginal}_procesado.txt` : 'enlaces_procesado.txt';
+
   const lector = new FileReader();
 
   lector.onload = function(e) {
@@ -221,24 +240,27 @@ function procesarArchivo() {
       textoSalida += `[${tipo}] ${url}\n${fecha}\n\n`;
     });
 
-    // Mostrar vista previa
+    textoSalida += '──────────────────────────────\n';
+    textoSalida += 'Hecho por Lynox Hub\n';
+    textoSalida += 'Discord: https://discord.gg/spWx8vKT\n';
+
+    // Vista previa
     preview.textContent = textoSalida.trim();
 
-    // Preparar descarga
+    // Descarga
     const blob = new Blob([textoSalida], { type: 'text/plain;charset=utf-8' });
     const urlBlob = URL.createObjectURL(blob);
 
-    const enlaceDescarga = document.createElement('a');
-    enlaceDescarga.href = urlBlob;
-    enlaceDescarga.download = `enlaces_${fecha}.txt`;
-    document.body.appendChild(enlaceDescarga);
-    enlaceDescarga.click();
+    const enlace = document.createElement('a');
+    enlace.href = urlBlob;
+    enlace.download = nombreDescarga;
+    document.body.appendChild(enlace);
+    enlace.click();
 
-    // Limpieza
-    document.body.removeChild(enlaceDescarga);
+    document.body.removeChild(enlace);
     URL.revokeObjectURL(urlBlob);
 
-    status.textContent = `¡Archivo descargado! (${urls.length} enlaces encontrados)`;
+    status.textContent = `¡Descargado como: ${nombreDescarga} (${urls.length} enlaces)`;
     status.className = 'success';
   };
 
