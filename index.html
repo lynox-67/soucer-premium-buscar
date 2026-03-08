@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Extraer enlaces - Lynox Hub</title>
+  <title>Extraer enlaces múltiples → Un solo TXT - Lynox Hub</title>
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -76,9 +76,16 @@
       white-space: pre-wrap;
       font-family: 'Consolas', 'Courier New', monospace;
       font-size: 0.92rem;
-      max-height: 340px;
+      max-height: 400px;
       overflow-y: auto;
       line-height: 1.5;
+    }
+    .file-list {
+      margin: 1rem 0;
+      padding: 0.8rem;
+      background: #f3f4f6;
+      border-radius: 6px;
+      font-size: 0.9rem;
     }
     .footer {
       text-align: center;
@@ -101,34 +108,24 @@
 <body>
 
 <div class="container">
-  <h1>Extraer enlaces y generar TXT</h1>
+  <h1>Extraer enlaces de varios archivos → Un solo TXT</h1>
   <div class="by">Hecho por Lynox Hub</div>
   <div class="discord">
     Únete al Discord: <a href="https://discord.gg/spWx8vKT" target="_blank" class="discord-link">https://discord.gg/spWx8vKT</a>
   </div>
 
   <p>
-    Sube tu archivo .txt → extrae enlaces → genera archivo con el mismo nombre + "_procesado"<br>
-    Formato generado:
+    Ahora puedes seleccionar varios archivos .txt a la vez.<br>
+    Todos los enlaces se juntan en **un solo archivo** (sin duplicados).
   </p>
-  <pre style="background:#f3f4f6; padding:12px; border-radius:6px; font-size:0.9rem;">
-[YouTube] https://youtube.com/watch?v=...
-2025-03-08
 
-[Imagen] https://i.imgur.com/abc123.jpg
-2025-03-08
+  <input type="file" id="fileInput" accept=".txt,text/plain" multiple>
 
-[Video] https://...
-2025-03-08
+  <div id="fileList" class="file-list" style="display:none;">
+    Archivos seleccionados: <span id="fileCount">0</span>
+  </div>
 
-──────────────────────────────
-Hecho por Lynox Hub
-Discord: https://discord.gg/spWx8vKT
-  </pre>
-
-  <input type="file" id="fileInput" accept=".txt,text/plain">
-
-  <button onclick="procesarArchivo()">Procesar y descargar</button>
+  <button onclick="procesarArchivos()">Procesar todos y descargar un solo TXT</button>
 
   <div id="status"></div>
 
@@ -196,80 +193,85 @@ function obtenerFechaHoy() {
 
 function extraerUrls(texto) {
   const regex = /https?:\/\/[^\s<>"'()]+/gi;
-  const encontrados = texto.match(regex) || [];
-  return [...new Set(encontrados)];
+  return texto.match(regex) || [];
 }
 
-function procesarArchivo() {
+async function procesarArchivos() {
   const input    = document.getElementById('fileInput');
   const status   = document.getElementById('status');
   const preview  = document.getElementById('preview');
+  const fileList = document.getElementById('fileList');
+  const fileCount = document.getElementById('fileCount');
 
   status.textContent = '';
   preview.textContent = '';
   status.className = '';
+  fileList.style.display = 'none';
 
   if (!input.files || input.files.length === 0) {
-    status.textContent = 'Selecciona un archivo .txt primero';
+    status.textContent = 'Selecciona al menos un archivo .txt';
     status.className = 'error';
     return;
   }
 
-  const archivo = input.files[0];
-  const nombreOriginal = archivo.name.replace(/\.txt$/i, '');
-  const nombreDescarga = nombreOriginal ? `${nombreOriginal}_procesado.txt` : 'enlaces_procesado.txt';
+  fileCount.textContent = input.files.length;
+  fileList.style.display = 'block';
 
-  const lector = new FileReader();
+  status.textContent = `Leyendo ${input.files.length} archivo(s)...`;
+  status.className = '';
 
-  lector.onload = function(e) {
-    const contenido = e.target.result;
-    const urls = extraerUrls(contenido);
+  const todosUrls = new Set(); // para evitar duplicados globales
 
-    if (urls.length === 0) {
-      status.textContent = 'No se encontraron enlaces en el archivo';
-      status.className = 'warning';
-      preview.textContent = '(vista previa vacía)';
-      return;
+  for (const archivo of input.files) {
+    try {
+      const texto = await archivo.text();
+      const urlsEncontradas = extraerUrls(texto);
+      urlsEncontradas.forEach(url => todosUrls.add(url));
+    } catch (err) {
+      console.error(`Error leyendo ${archivo.name}:`, err);
     }
+  }
 
-    const fecha = obtenerFechaHoy();
-    let textoSalida = '';
+  const urlsUnicas = Array.from(todosUrls);
 
-    urls.forEach(url => {
-      const tipo = detectarTipo(url);
-      textoSalida += `[${tipo}] ${url}\n${fecha}\n\n`;
-    });
+  if (urlsUnicas.length === 0) {
+    status.textContent = 'No se encontraron enlaces en ninguno de los archivos';
+    status.className = 'warning';
+    preview.textContent = '(vista previa vacía)';
+    return;
+  }
 
-    textoSalida += '──────────────────────────────\n';
-    textoSalida += 'Hecho por Lynox Hub\n';
-    textoSalida += 'Discord: https://discord.gg/spWx8vKT\n';
+  const fecha = obtenerFechaHoy();
+  let textoSalida = `Total de enlaces únicos encontrados: ${urlsUnicas.length}\n`;
+  textoSalida += `Procesado el: ${fecha}\n\n`;
 
-    // Vista previa
-    preview.textContent = textoSalida.trim();
+  urlsUnicas.forEach(url => {
+    const tipo = detectarTipo(url);
+    textoSalida += `[${tipo}] ${url}\n${fecha}\n\n`;
+  });
 
-    // Descarga
-    const blob = new Blob([textoSalida], { type: 'text/plain;charset=utf-8' });
-    const urlBlob = URL.createObjectURL(blob);
+  textoSalida += '──────────────────────────────\n';
+  textoSalida += 'Hecho por Lynox Hub\n';
+  textoSalida += 'Discord: https://discord.gg/spWx8vKT\n';
 
-    const enlace = document.createElement('a');
-    enlace.href = urlBlob;
-    enlace.download = nombreDescarga;
-    document.body.appendChild(enlace);
-    enlace.click();
+  // Vista previa
+  preview.textContent = textoSalida.trim();
 
-    document.body.removeChild(enlace);
-    URL.revokeObjectURL(urlBlob);
+  // Descarga
+  const blob = new Blob([textoSalida], { type: 'text/plain;charset=utf-8' });
+  const urlBlob = URL.createObjectURL(blob);
 
-    status.textContent = `¡Descargado como: ${nombreDescarga} (${urls.length} enlaces)`;
-    status.className = 'success';
-  };
+  const enlace = document.createElement('a');
+  enlace.href = urlBlob;
+  enlace.download = `enlaces_combinados_${fecha}.txt`;
+  document.body.appendChild(enlace);
+  enlace.click();
 
-  lector.onerror = function() {
-    status.textContent = 'Error al leer el archivo';
-    status.className = 'error';
-  };
+  document.body.removeChild(enlace);
+  URL.revokeObjectURL(urlBlob);
 
-  lector.readAsText(archivo);
+  status.textContent = `¡Descargado! (${urlsUnicas.length} enlaces únicos de ${input.files.length} archivo(s))`;
+  status.className = 'success';
 }
 </script>
 </body>
