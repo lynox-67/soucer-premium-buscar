@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>LYNOX HUB - HACKER GREEN MATRIX 🧑‍💻</title>
+  <title>LYNOX HUB - MATRIX GREEN HACK 🧑‍💻</title>
   <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Press+Start+2P&family=Vt323&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -11,80 +11,88 @@
       --verde-lima: #39ff14;
       --verde-oscuro: #003300;
       --negro-matrix: #000000;
-      --gris-oscuro: #0f0f0f;
     }
 
     * { margin:0; padding:0; box-sizing:border-box; }
-    body {
+    body, html {
+      height: 100%;
+      overflow: hidden;
       background: var(--negro-matrix);
       color: var(--verde-neon);
       font-family: 'Vt323', monospace;
-      min-height: 100vh;
-      overflow-x: hidden;
-      position: relative;
     }
 
-    /* Fondo Matrix - código cayendo */
-    .matrix-bg {
+    /* Video Matrix de fondo */
+    #bg-video {
+      position: fixed;
+      right: 0;
+      bottom: 0;
+      min-width: 100%;
+      min-height: 100%;
+      z-index: -2;
+      object-fit: cover;
+    }
+
+    /* Overlay Matrix rain más visible */
+    #matrix-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
       pointer-events: none;
       z-index: -1;
-      background: linear-gradient(to bottom, rgba(0,0,0,0.9), rgba(0,51,0,0.7));
+      background: rgba(0,0,0,0.45);
     }
 
-    .matrix {
+    .matrix-char {
       position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      overflow: hidden;
-      font-family: 'Courier New', monospace;
-      font-size: 14px;
       color: var(--verde-lima);
+      font-size: 18px;
       white-space: pre;
-      animation: fall 60s linear infinite;
+      text-shadow: 0 0 10px var(--verde-neon);
+      animation: fall linear forwards;
+      will-change: transform;
     }
 
     @keyframes fall {
-      0% { transform: translateY(-100%); }
-      100% { transform: translateY(100%); }
+      to { transform: translateY(120vh); }
+    }
+
+    /* Contenedor principal semi-transparente */
+    .container {
+      position: relative;
+      z-index: 10;
+      background: rgba(0, 20, 0, 0.75);
+      backdrop-filter: blur(8px);
+      border: 3px solid var(--verde-neon);
+      border-radius: 16px;
+      margin: 20px auto;
+      padding: 30px;
+      max-width: 900px;
+      box-shadow: 0 0 40px rgba(0,255,65,0.5);
     }
 
     h1 {
       font-family: 'Press Start 2P', cursive;
-      font-size: 3.2rem;
+      font-size: 3rem;
       text-align: center;
       color: var(--verde-lima);
-      text-shadow: 0 0 20px var(--verde-neon), 0 0 40px var(--verde-lima);
-      margin: 20px 0 10px;
-      letter-spacing: 6px;
-      animation: glitch-hacker 4s infinite;
+      text-shadow: 0 0 20px var(--verde-neon);
+      margin-bottom: 10px;
+      letter-spacing: 4px;
+      animation: glitch 4s infinite;
     }
 
-    @keyframes glitch-hacker {
-      0% { text-shadow: 2px 2px var(--verde-neon), -2px -2px #00aa00; }
+    @keyframes glitch {
+      0%, 100% { text-shadow: 2px 2px var(--verde-neon), -2px -2px #00aa00; }
       20% { text-shadow: -2px 2px var(--verde-neon), 2px -2px #00aa00; }
       40% { text-shadow: 2px -2px var(--verde-neon), -2px 2px #00aa00; }
-      60% { text-shadow: -2px -2px var(--verde-neon), 2px 2px #00aa00; }
-      80% { text-shadow: 2px 2px var(--verde-neon), -2px -2px #00aa00; }
-      100% { text-shadow: -2px 2px var(--verde-neon), 2px -2px #00aa00; }
     }
 
-    .by { text-align: center; font-size: 1.5rem; color: #00ff4188; margin-bottom: 15px; text-shadow: 0 0 10px var(--verde-neon); font-family: 'Press Start 2P', cursive; }
-
-    .discord { text-align: center; font-size: 1.4rem; margin: 10px 0 30px; }
-    .discord a { color: var(--verde-lima); text-decoration: none; font-weight: bold; border-bottom: 3px dashed var(--verde-neon); padding-bottom: 4px; transition: all 0.3s; }
-    .discord a:hover { color: #00ffaa; border-color: #00ffaa; text-shadow: 0 0 15px #00ffaa; }
-
-    .container {
-      background: rgba(0, 20, 0, 0.85);
-      backdrop-filter: blur(6px);
-      border: 4px solid var(--verde-neon);
-      border-radius: 16px;
-      padding: 30px 20px;
-      max-width: 900px;
-      margin: 0 auto 40px;
-      box-shadow: 0 0 40px rgba(0,255,65,0.4), inset 0 0 20px rgba(0,255,65,0.15);
+    .by {
+      text-align: center;
+      font-size: 1.4rem;
+      color: #00ff4188;
+      margin-bottom: 20px;
+      text-shadow: 0 0 10px var(--verde-neon);
     }
 
     input[type="file"], textarea {
@@ -93,33 +101,28 @@
       border: 2px solid var(--verde-neon);
       border-radius: 8px;
       padding: 12px;
-      font-family: 'Vt323', monospace;
-      font-size: 1.3rem;
       width: 100%;
       margin: 12px 0;
+      font-size: 1.2rem;
     }
 
     button {
       background: linear-gradient(45deg, var(--verde-lima), #00aa00);
       color: black;
       border: none;
-      padding: 14px 28px;
+      padding: 14px 30px;
       margin: 10px;
-      border-radius: 12px;
+      border-radius: 10px;
       font-size: 1.3rem;
       cursor: pointer;
-      box-shadow: 0 0 20px rgba(0,255,65,0.7);
+      box-shadow: 0 0 20px rgba(0,255,65,0.6);
       transition: all 0.2s;
-      font-family: 'Press Start 2P', cursive;
     }
 
     button:hover {
-      transform: scale(1.08);
-      box-shadow: 0 0 35px rgba(0,255,65,1);
+      transform: scale(1.05);
+      box-shadow: 0 0 30px rgba(0,255,65,0.9);
     }
-
-    #startSend { background: linear-gradient(45deg, #00ff41, #39ff14); color: #000; }
-    #stopSend  { background: linear-gradient(45deg, #ff0044, #cc0033); color: white; }
 
     #status {
       background: rgba(0,0,0,0.7);
@@ -127,95 +130,86 @@
       border-radius: 10px;
       margin: 20px 0;
       font-size: 1.3rem;
-      border-left: 8px solid var(--verde-lima);
+      border-left: 6px solid var(--verde-lima);
       white-space: pre-line;
     }
 
     #preview {
       background: #000800;
-      border: 3px dashed var(--verde-neon);
-      border-radius: 12px;
-      padding: 20px;
-      font-size: 1.2rem;
-      max-height: 400px;
+      border: 2px dashed var(--verde-neon);
+      border-radius: 10px;
+      padding: 15px;
+      max-height: 350px;
       overflow-y: auto;
-      margin-top: 25px;
+      margin-top: 20px;
       color: var(--verde-lima);
     }
 
-    .footer { text-align: center; font-size: 1.4rem; color: #00ff4188; margin-top: 50px; text-shadow: 0 0 10px var(--verde-neon); }
+    .footer {
+      text-align: center;
+      color: #00ff4188;
+      margin-top: 30px;
+      font-size: 1.2rem;
+    }
   </style>
 </head>
 <body>
 
-<div class="matrix-bg">
-  <div class="matrix">
-    01010101 10101010 01100111 10010110 00111001 11001010 01010111 10100100<br>
-    10011001 01101010 10100101 01011010 00101101 11010011 01100100 10010111<br>
-    01010100 10101011 01100101 10011000 00111100 11001101 01010110 10100111<br>
-    ... (el código se genera dinámicamente abajo) ...
-  </div>
-</div>
+<video autoplay muted loop playsinline id="bg-video">
+  <source src="https://www.youtube.com/embed/R8lHaEZYpCU?autoplay=1&mute=1&loop=1&playlist=R8lHaEZYpCU&controls=0&showinfo=0&rel=0&modestbranding=1" type="video/mp4">
+  Tu navegador no soporta video de fondo.
+</video>
+
+<div id="matrix-overlay"></div>
 
 <div class="container">
-  <h1>LYNOX HUB - HACKER MATRIX GREEN 🧑‍💻</h1>
+  <h1>LYNOX HUB - MATRIX GREEN HACK 🧑‍💻</h1>
   <div class="by">HECHO POR LYNX EL HACKER LOCO</div>
-  <div class="discord">Únete al hack → <a href="https://discord.gg/spWx8vKT" target="_blank">discord.gg/spWx8vKT</a> 💾</div>
 
-  <p style="font-size:1.3rem; text-align:center; margin:20px 0;">
-    Solo cazo https://cdn.discordapp.com/attachments/... → uno por segundo (30 min max seguro) 🔥
+  <p style="text-align:center; font-size:1.3rem; margin:20px 0;">
+    Solo cazo https://cdn.discordapp.com/attachments/... → uno por segundo (seguro)
   </p>
 
   <input type="file" id="fileInput" accept=".txt" multiple>
 
-  <label for="webhook">Pega tu webhook de Discord (solo uno):</label>
-  <textarea id="webhook" placeholder="https://discord.com/api/webhooks/12345/abcdef..."></textarea>
+  <label for="webhook">Webhook Discord (solo uno):</label>
+  <textarea id="webhook" placeholder="https://discord.com/api/webhooks/..."></textarea>
 
   <div style="text-align:center; margin:30px 0;">
     <button id="startSend">INICIAR HACK 🧑‍💻</button>
     <button id="stopSend">ABORTAR 🛑</button>
   </div>
 
-  <div id="status">Esperando archivos para infiltración... suelta los txts 💀</div>
+  <div id="status">Esperando infiltración... suelta los txts 💀</div>
   <div id="preview"></div>
 </div>
 
 <div class="footer">
-  LYN0X HUB - GREEN MATRIX HACK 2026 🧑‍💻💚
+  LYN0X HUB - GREEN MATRIX 2026 🧑‍💻💚
 </div>
 
 <script>
-// Fondo Matrix dinámico (código cayendo)
-const matrix = document.querySelector('.matrix');
-const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
-let matrixLines = [];
+// Matrix rain más intenso
+const matrixOverlay = document.getElementById('matrix-overlay');
+const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*';
 
-function createMatrixLine() {
-  const line = document.createElement('div');
-  line.style.position = 'absolute';
-  line.style.left = Math.random() * 100 + 'vw';
-  line.style.top = '-100px';
-  line.style.whiteSpace = 'pre';
-  line.style.opacity = Math.random() * 0.5 + 0.5;
-  line.textContent = Array(80).fill().map(() => chars[Math.floor(Math.random() * chars.length)]).join('');
-  matrix.appendChild(line);
-  matrixLines.push(line);
+function createMatrixChar() {
+  const char = document.createElement('div');
+  char.className = 'matrix-char';
+  char.textContent = chars[Math.floor(Math.random() * chars.length)];
+  char.style.left = Math.random() * 100 + 'vw';
+  char.style.top = '-30px';
+  char.style.animationDuration = (Math.random() * 5 + 3) + 's';
+  char.style.opacity = Math.random() * 0.7 + 0.3;
+  char.style.fontSize = Math.random() * 18 + 14 + 'px';
+  matrixOverlay.appendChild(char);
+
+  setTimeout(() => char.remove(), 12000);
 }
 
-setInterval(() => {
-  if (matrixLines.length < 50) createMatrixLine();
-  matrixLines.forEach((line, i) => {
-    let top = parseFloat(line.style.top) || -100;
-    top += 1.5 + Math.random() * 0.5;
-    line.style.top = top + 'px';
-    if (top > window.innerHeight) {
-      line.remove();
-      matrixLines.splice(i, 1);
-    }
-  });
-}, 80);
+setInterval(createMatrixChar, 30);
 
-// Script funcional (solo cdn.discordapp.com/attachments)
+// Lógica funcional (solo cdn attachments)
 let linksFiltrados = [];
 let intervaloEnvio = null;
 let indiceEnvio = 0;
@@ -231,8 +225,7 @@ function mostrarEstado(texto, tipo = '') {
 
 function esCdnAttachment(url) {
   try {
-    const u = url.toLowerCase();
-    return u.startsWith('https://cdn.discordapp.com/attachments/');
+    return url.toLowerCase().startsWith('https://cdn.discordapp.com/attachments/');
   } catch {
     return false;
   }
@@ -241,28 +234,27 @@ function esCdnAttachment(url) {
 function descargarTXT() {
   if (linksFiltrados.length === 0) return;
 
-  let contenido = `Archivos de Discord (cdn.discordapp.com/attachments): ${linksFiltrados.length}\n\n`;
+  let contenido = `Archivos Discord CDN encontrados: ${linksFiltrados.length}\n\n`;
   linksFiltrados.forEach((url, i) => {
     contenido += `${i + 1}. ${url}\n`;
   });
   contenido += '\n──────────────────────────────\n';
-  contenido += `Total recolectados: ${linksFiltrados.length}\n`;
-  contenido += 'Hecho por Lynox Hub\nDiscord: https://discord.gg/spWx8vKT\n';
+  contenido += `Total: ${linksFiltrados.length}\nHecho por Lynox Hub\n`;
 
   const blob = new Blob([contenido], { type: 'text/plain;charset=utf-8' });
   const urlBlob = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = urlBlob;
-  a.download = 'archivos_discord_cdn.txt';
+  a.download = 'cdn_discord_files.txt';
   a.click();
   URL.revokeObjectURL(urlBlob);
 }
 
 async function procesarArchivos() {
   const input = document.getElementById('fileInput');
-  if (!input.files?.length) return mostrarEstado('Selecciona archivos primero', 'error');
+  if (!input.files?.length) return mostrarEstado('Suelta archivos .txt primero', 'error');
 
-  mostrarEstado(`Leyendo ${input.files.length} archivo(s)...`);
+  mostrarEstado(`Extrayendo ${input.files.length} archivos...`);
 
   const setUrls = new Set();
 
@@ -271,9 +263,7 @@ async function procesarArchivos() {
       const txt = await file.text();
       const urls = txt.match(/https?:\/\/[^\s<>"'()]+/gi) || [];
       urls.forEach(u => {
-        if (esCdnAttachment(u)) {
-          setUrls.add(u.trim());
-        }
+        if (esCdnAttachment(u)) setUrls.add(u.trim());
       });
     } catch {}
   }
@@ -281,16 +271,13 @@ async function procesarArchivos() {
   linksFiltrados = Array.from(setUrls);
 
   if (linksFiltrados.length === 0) {
-    mostrarEstado('No se encontraron enlaces https://cdn.discordapp.com/attachments/', 'warning');
+    mostrarEstado('No encontré ningún https://cdn.discordapp.com/attachments/', 'warning');
     preview.textContent = '';
     return;
   }
 
-  preview.textContent = linksFiltrados.map((url, i) => 
-    `${i+1}. ${url}`
-  ).join('\n');
-
-  mostrarEstado(`Listo: ${linksFiltrados.length} archivos de Discord encontrados`, 'success');
+  preview.textContent = linksFiltrados.map((url, i) => `${i+1}. ${url}`).join('\n');
+  mostrarEstado(`Listo: ${linksFiltrados.length} archivos encontrados`, 'success');
 
   descargarTXT();
 }
@@ -304,7 +291,7 @@ async function enviarAlWebhook() {
   }
 
   if (indiceEnvio >= linksFiltrados.length) {
-    mostrarEstado(`¡Terminado! (${linksFiltrados.length} archivos enviados)`, 'success');
+    mostrarEstado(`Hack completado (${linksFiltrados.length} archivos)`, 'success');
     clearInterval(intervaloEnvio);
     intervaloEnvio = null;
     return;
@@ -324,19 +311,16 @@ async function enviarAlWebhook() {
     if (res.ok) {
       mostrarEstado(`Enviado ${numero}/${linksFiltrados.length}`);
     } else if (res.status === 429) {
-      mostrarEstado('Rate limit (429) → parando envío automático', 'warning');
+      mostrarEstado('Rate limit detectado (429) → parando', 'warning');
       clearInterval(intervaloEnvio);
       intervaloEnvio = null;
-      return;
     } else {
-      mostrarEstado(`Error ${res.status}: ${await res.text().catch(() => '?')}`, 'error');
+      mostrarEstado(`Error ${res.status}`, 'error');
       clearInterval(intervaloEnvio);
-      return;
     }
   } catch (err) {
     mostrarEstado(`Fallo conexión: ${err.message}`, 'error');
     clearInterval(intervaloEnvio);
-    return;
   }
 
   indiceEnvio++;
@@ -345,10 +329,10 @@ async function enviarAlWebhook() {
 document.getElementById('fileInput').addEventListener('change', procesarArchivos);
 
 document.getElementById('startSend').onclick = () => {
-  if (linksFiltrados.length === 0) return mostrarEstado('Primero carga archivos', 'warning');
+  if (linksFiltrados.length === 0) return mostrarEstado('Carga archivos primero', 'warning');
   if (intervaloEnvio) return;
 
-  mostrarEstado('Iniciando hack... 1 archivo por segundo (muy seguro, ~30 min para 1800)...');
+  mostrarEstado('Iniciando extracción... 1 por segundo (seguro)');
   intervaloEnvio = setInterval(enviarAlWebhook, 1000);
 };
 
@@ -357,7 +341,7 @@ document.getElementById('stopSend').onclick = () => {
     clearInterval(intervaloEnvio);
     intervaloEnvio = null;
   }
-  mostrarEstado('Hack detenido');
+  mostrarEstado('Operación abortada');
 };
 </script>
 </body>
