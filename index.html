@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>LYNOX HUB - CAZADOR DE DISCORD AZUL SALVAJE 🐱‍🚀</title>
+  <title>LYNOX HUB - CAZADOR DE ARCHIVOS DISCORD AZUL 🐱‍🚀</title>
   <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Press+Start+2P&family=Vt323&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -61,7 +61,7 @@
       box-shadow: 0 0 40px rgba(0, 212, 255, 0.5);
     }
 
-    input[type="file"], textarea, input[type="number"] {
+    input[type="file"], textarea {
       background: #001133;
       color: #00ffff;
       border: 2px solid #00d4ff;
@@ -123,12 +123,12 @@
 <body>
 
 <div class="container">
-  <h1>LYNOX HUB - SOLO DISCORD SALVAJE 🐱‍💻</h1>
+  <h1>LYNOX HUB - SOLO ARCHIVOS DISCORD 🐱‍💻</h1>
   <div class="by">HECHO POR LYNX LOCO CON GARRAS AZULES</div>
   <div class="discord">Únete al caos → <a href="https://discord.gg/spWx8vKT" target="_blank">discord.gg/spWx8vKT</a> 🐾</div>
 
   <p style="font-size:1.3rem; text-align:center; margin:20px 0;">
-    Cazo solo links de Discord → uno por segundo (30 min aprox para 1800) → seguro sin rate limit 🔥
+    Solo cazo https://cdn.discordapp.com/attachments/... → uno por segundo (seguro, ~30 min para 1800) 🔥
   </p>
 
   <input type="file" id="fileInput" accept=".txt" multiple>
@@ -141,7 +141,7 @@
     <button id="stopSend">PARAR TODO 🛑</button>
   </div>
 
-  <div id="status">Listo para cazar invites... suelta los txts 🔥</div>
+  <div id="status">Listo para cazar attachments... suelta los txts 🔥</div>
   <div id="preview"></div>
 </div>
 
@@ -163,12 +163,10 @@ function mostrarEstado(texto, tipo = '') {
   status.className = tipo;
 }
 
-function esLinkDiscord(url) {
+function esCdnAttachment(url) {
   try {
     const u = url.toLowerCase();
-    return u.includes('discord.gg') || 
-           u.includes('discord.com/invite') || 
-           u.includes('discordapp.com');
+    return u.startsWith('https://cdn.discordapp.com/attachments/');
   } catch {
     return false;
   }
@@ -177,7 +175,7 @@ function esLinkDiscord(url) {
 function descargarTXT() {
   if (linksFiltrados.length === 0) return;
 
-  let contenido = `Invitaciones Discord encontradas: ${linksFiltrados.length}\n\n`;
+  let contenido = `Archivos de Discord encontrados (cdn.discordapp.com/attachments): ${linksFiltrados.length}\n\n`;
   linksFiltrados.forEach((url, i) => {
     contenido += `${i + 1}. ${url}\n`;
   });
@@ -189,7 +187,7 @@ function descargarTXT() {
   const urlBlob = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = urlBlob;
-  a.download = 'invitaciones_discord.txt';
+  a.download = 'archivos_discord_cdn.txt';
   a.click();
   URL.revokeObjectURL(urlBlob);
 }
@@ -207,7 +205,7 @@ async function procesarArchivos() {
       const txt = await file.text();
       const urls = txt.match(/https?:\/\/[^\s<>"'()]+/gi) || [];
       urls.forEach(u => {
-        if (esLinkDiscord(u)) {
+        if (esCdnAttachment(u)) {
           setUrls.add(u.trim());
         }
       });
@@ -217,7 +215,7 @@ async function procesarArchivos() {
   linksFiltrados = Array.from(setUrls);
 
   if (linksFiltrados.length === 0) {
-    mostrarEstado('No se encontraron invites de Discord válidas', 'warning');
+    mostrarEstado('No se encontraron enlaces https://cdn.discordapp.com/attachments/', 'warning');
     preview.textContent = '';
     return;
   }
@@ -226,7 +224,7 @@ async function procesarArchivos() {
     `${i+1}. ${url}`
   ).join('\n');
 
-  mostrarEstado(`Listo: ${linksFiltrados.length} invites de Discord`, 'success');
+  mostrarEstado(`Listo: ${linksFiltrados.length} archivos de Discord encontrados`, 'success');
 
   descargarTXT();
 }
@@ -240,7 +238,7 @@ async function enviarAlWebhook() {
   }
 
   if (indiceEnvio >= linksFiltrados.length) {
-    mostrarEstado(`¡Terminado! (${linksFiltrados.length} invites enviadas)`, 'success');
+    mostrarEstado(`¡Terminado! (${linksFiltrados.length} archivos enviados)`, 'success');
     clearInterval(intervaloEnvio);
     intervaloEnvio = null;
     return;
@@ -258,7 +256,7 @@ async function enviarAlWebhook() {
     });
 
     if (res.ok) {
-      mostrarEstado(`Enviada ${numero}/${linksFiltrados.length}`);
+      mostrarEstado(`Enviado ${numero}/${linksFiltrados.length}`);
     } else if (res.status === 429) {
       mostrarEstado('Rate limit (429) → parando envío automático', 'warning');
       clearInterval(intervaloEnvio);
@@ -284,7 +282,7 @@ document.getElementById('startSend').onclick = () => {
   if (linksFiltrados.length === 0) return mostrarEstado('Primero carga archivos', 'warning');
   if (intervaloEnvio) return;
 
-  mostrarEstado('Enviando 1 invite por segundo (seguro, ~30 min para 1800 invites)...');
+  mostrarEstado('Enviando 1 archivo por segundo (muy seguro, ~30 min para 1800)...');
   intervaloEnvio = setInterval(enviarAlWebhook, 1000);
 };
 
