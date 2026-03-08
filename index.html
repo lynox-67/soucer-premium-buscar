@@ -3,123 +3,42 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Extraer solo Imágenes, Videos y Discord - Lynox Hub</title>
+  <title>Extraer Imágenes, Videos y Discord Invites - Lynox Hub</title>
   <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      max-width: 1000px;
-      margin: 40px auto;
-      padding: 0 20px;
-      background: #f9fafb;
-      color: #111827;
-      line-height: 1.6;
-    }
-    h1 {
-      color: #1e40af;
-      text-align: center;
-      margin-bottom: 0.4rem;
-    }
-    .by {
-      text-align: center;
-      color: #4b5563;
-      font-size: 0.95rem;
-      margin-bottom: 1.2rem;
-    }
-    .discord {
-      text-align: center;
-      color: #5865F2;
-      font-weight: 600;
-      margin: 0.6rem 0 2rem 0;
-      font-size: 1.05rem;
-    }
-    .container {
-      background: white;
-      padding: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-    }
-    p {
-      margin-bottom: 1.5rem;
-      color: #4b5563;
-    }
-    input[type="file"] {
-      margin: 1.5rem 0;
-      padding: 0.5rem;
-    }
-    button {
-      background: #2563eb;
-      color: white;
-      border: none;
-      padding: 0.9rem 2rem;
-      border-radius: 8px;
-      font-size: 1.05rem;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    button:hover {
-      background: #1d4ed8;
-    }
-    #status {
-      margin: 1.2rem 0;
-      font-weight: 500;
-      min-height: 1.4em;
-    }
+    body { font-family: system-ui, sans-serif; max-width: 1000px; margin: 40px auto; padding: 0 20px; background: #f9fafb; color: #111827; line-height: 1.6; }
+    h1 { color: #1e40af; text-align: center; margin-bottom: 0.4rem; }
+    .by { text-align: center; color: #4b5563; font-size: 0.95rem; margin-bottom: 1.2rem; }
+    .discord { text-align: center; color: #5865F2; font-weight: 600; margin: 0.6rem 0 2rem 0; font-size: 1.05rem; }
+    .container { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+    p { margin-bottom: 1.5rem; color: #4b5563; }
+    input[type="file"] { margin: 1.5rem 0; padding: 0.5rem; }
+    button { background: #2563eb; color: white; border: none; padding: 0.9rem 2rem; border-radius: 8px; font-size: 1.05rem; cursor: pointer; }
+    button:hover { background: #1d4ed8; }
+    #status { margin: 1.2rem 0; font-weight: 500; min-height: 1.4em; }
     .success { color: #15803d; }
     .warning { color: #b45309; }
-    .error   { color: #b91c1c; }
-    #preview {
-      margin-top: 1.5rem;
-      padding: 1.2rem;
-      background: #f1f5f9;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      white-space: pre-wrap;
-      font-family: 'Consolas', 'Courier New', monospace;
-      font-size: 0.92rem;
-      max-height: 400px;
-      overflow-y: auto;
-      line-height: 1.5;
-    }
-    .file-list {
-      margin: 1rem 0;
-      padding: 0.8rem;
-      background: #f3f4f6;
-      border-radius: 6px;
-      font-size: 0.9rem;
-    }
-    .footer {
-      text-align: center;
-      margin-top: 2.5rem;
-      padding-top: 1.5rem;
-      border-top: 1px solid #e5e7eb;
-      color: #4b5563;
-      font-size: 0.95rem;
-    }
-    .discord-link {
-      color: #5865F2;
-      font-weight: 600;
-      text-decoration: none;
-    }
-    .discord-link:hover {
-      text-decoration: underline;
-    }
+    .error { color: #b91c1c; }
+    #preview { margin-top: 1.5rem; padding: 1.2rem; background: #f1f5f9; border: 1px solid #e5e7eb; border-radius: 8px; white-space: pre-wrap; font-family: 'Consolas', monospace; font-size: 0.92rem; max-height: 400px; overflow-y: auto; line-height: 1.5; }
+    .file-list { margin: 1rem 0; padding: 0.8rem; background: #f3f4f6; border-radius: 6px; font-size: 0.9rem; }
+    .footer { text-align: center; margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb; color: #4b5563; font-size: 0.95rem; }
+    .discord-link { color: #5865F2; font-weight: 600; text-decoration: none; }
+    .discord-link:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
 
 <div class="container">
-  <h1>Extraer solo Imágenes, Videos y enlaces de Discord</h1>
+  <h1>Extraer solo Imágenes, Videos y Discord Invites</h1>
   <div class="by">Hecho por Lynox Hub</div>
   <div class="discord">
-    Únete al Discord: <a href="https://discord.gg/spWx8vKT" target="_blank" class="discord-link">https://discord.gg/spWx8vKT</a>
+    <a href="https://discord.gg/spWx8vKT" target="_blank" class="discord-link">https://discord.gg/spWx8vKT</a>
   </div>
 
   <p>
-    Selecciona varios .txt → solo guarda enlaces de:<br>
     • Imágenes (.jpg, .png, .gif, etc.)<br>
-    • Videos (.mp4, .webm, .mov, etc.)<br>
-    • Enlaces de Discord (discord.com / discordapp.com)<br>
-    Ignora todo lo demás (YouTube, Twitter, etc.)
+    • Videos (.mp4, .webm, etc.)<br>
+    • Invitaciones Discord (discord.gg / discord.com/invite)<br>
+    → Los Discord se formatean con Markdown para que se vean bonitos al pegar en Discord
   </p>
 
   <input type="file" id="fileInput" accept=".txt,text/plain" multiple>
@@ -131,45 +50,39 @@
   <button onclick="procesarArchivos()">Procesar y descargar TXT</button>
 
   <div id="status"></div>
-
   <div id="preview"></div>
 
   <div class="footer">
-    Hecho por Lynox Hub • 
-    <a href="https://discord.gg/spWx8vKT" target="_blank" class="discord-link">Discord: https://discord.gg/spWx8vKT</a>
+    Hecho por Lynox Hub • <a href="https://discord.gg/spWx8vKT" target="_blank" class="discord-link">Discord</a>
   </div>
 </div>
 
 <script>
-// Solo estas categorías se guardan
-const categoriasPermitidas = {
+const categorias = {
   imagen: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'],
   video:  ['.mp4', '.webm', '.mov', '.avi', '.mkv'],
   discord: ['discord.com', 'discordapp.com', 'discord.gg']
 };
 
-function esPermitido(url) {
+function clasificarLink(url) {
   try {
     const u = new URL(url.toLowerCase());
     const hostname = u.hostname;
-    const pathname = u.pathname.toLowerCase();
+    const path = u.pathname.toLowerCase();
 
-    // Discord (cualquier subdominio o path)
-    if (categoriasPermitidas.discord.some(d => hostname.includes(d))) {
-      return 'Discord';
+    if (categorias.discord.some(d => hostname.includes(d) || path.includes(d))) {
+      return { tipo: 'Discord', formato: `[Discord] **[Únete aquí](${url})**` };
     }
 
-    // Extensiones de imagen
-    if (categoriasPermitidas.imagen.some(ext => pathname.endsWith(ext))) {
-      return 'Imagen';
+    if (categorias.imagen.some(ext => path.endsWith(ext))) {
+      return { tipo: 'Imagen', formato: `[Imagen] ${url}` };
     }
 
-    // Extensiones de video
-    if (categoriasPermitidas.video.some(ext => pathname.endsWith(ext))) {
-      return 'Video';
+    if (categorias.video.some(ext => path.endsWith(ext))) {
+      return { tipo: 'Video', formato: `[Video] ${url}` };
     }
 
-    return null; // no permitido
+    return null;
   } catch {
     return null;
   }
@@ -181,10 +94,10 @@ function extraerUrls(texto) {
 }
 
 async function procesarArchivos() {
-  const input     = document.getElementById('fileInput');
-  const status    = document.getElementById('status');
-  const preview   = document.getElementById('preview');
-  const fileList  = document.getElementById('fileList');
+  const input = document.getElementById('fileInput');
+  const status = document.getElementById('status');
+  const preview = document.getElementById('preview');
+  const fileList = document.getElementById('fileList');
   const fileCount = document.getElementById('fileCount');
 
   status.textContent = '';
@@ -192,15 +105,14 @@ async function procesarArchivos() {
   status.className = '';
   fileList.style.display = 'none';
 
-  if (!input.files || input.files.length === 0) {
-    status.textContent = 'Selecciona al menos un archivo .txt';
+  if (!input.files?.length) {
+    status.textContent = 'Selecciona al menos un .txt';
     status.className = 'error';
     return;
   }
 
   fileCount.textContent = input.files.length;
   fileList.style.display = 'block';
-
   status.textContent = `Leyendo ${input.files.length} archivo(s)...`;
 
   const todosUrls = new Set();
@@ -208,36 +120,32 @@ async function procesarArchivos() {
   for (const archivo of input.files) {
     try {
       const texto = await archivo.text();
-      const urlsEncontradas = extraerUrls(texto);
-      urlsEncontradas.forEach(url => todosUrls.add(url.trim()));
+      extraerUrls(texto).forEach(url => todosUrls.add(url.trim()));
     } catch (err) {
-      console.error(`Error en ${archivo.name}:`, err);
+      console.error(err);
     }
   }
 
-  // Filtrar solo los permitidos
-  const urlsFiltradas = Array.from(todosUrls)
-    .filter(url => esPermitido(url) !== null);
+  const filtrados = Array.from(todosUrls)
+    .map(url => clasificarLink(url))
+    .filter(Boolean);
 
-  if (urlsFiltradas.length === 0) {
-    status.textContent = 'No se encontraron imágenes, videos ni enlaces de Discord';
+  if (filtrados.length === 0) {
+    status.textContent = 'No se encontraron imágenes, videos ni invites de Discord';
     status.className = 'warning';
-    preview.textContent = '(vista previa vacía)';
+    preview.textContent = '(vacío)';
     return;
   }
 
-  let textoSalida = '';
+  let textoSalida = `Enlaces recolectados: ${filtrados.length}\n`;
+  textoSalida += `Desde ${input.files.length} archivo(s)\n\n`;
 
-  textoSalida += `Total de enlaces permitidos encontrados: ${urlsFiltradas.length}\n`;
-  textoSalida += `Procesado desde ${input.files.length} archivo(s)\n\n`;
-
-  urlsFiltradas.forEach(url => {
-    const tipo = esPermitido(url);
-    textoSalida += `[${tipo}] ${url}\n\n`;
+  filtrados.forEach(item => {
+    textoSalida += item.formato + '\n\n';
   });
 
   textoSalida += '──────────────────────────────\n';
-  textoSalida += `Total de enlaces recolectados: ${urlsFiltradas.length}\n`;
+  textoSalida += `Total de enlaces recolectados: ${filtrados.length}\n`;
   textoSalida += 'Hecho por Lynox Hub\n';
   textoSalida += 'Discord: https://discord.gg/spWx8vKT\n';
 
@@ -245,17 +153,13 @@ async function procesarArchivos() {
 
   const blob = new Blob([textoSalida], { type: 'text/plain;charset=utf-8' });
   const urlBlob = URL.createObjectURL(blob);
-
-  const enlace = document.createElement('a');
-  enlace.href = urlBlob;
-  enlace.download = 'imagenes_videos_discord.txt';
-  document.body.appendChild(enlace);
-  enlace.click();
-
-  document.body.removeChild(enlace);
+  const a = document.createElement('a');
+  a.href = urlBlob;
+  a.download = 'imagenes_videos_discord.txt';
+  a.click();
   URL.revokeObjectURL(urlBlob);
 
-  status.textContent = `¡Descargado! (${urlsFiltradas.length} enlaces recolectados)`;
+  status.textContent = `¡Descargado! (${filtrados.length} enlaces)`;
   status.className = 'success';
 }
 </script>
