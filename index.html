@@ -232,7 +232,7 @@ async function procesarArchivos() {
 
   preview.textContent = linksFiltrados.map((url, i) => `${i+1}. ${url}`).join('\n');
   mostrarEstado(`Listo: ${linksFiltrados.length} archivos encontrados`, 'success');
-  // ← Quitamos la llamada a descargarTXT() para que NO descargue el archivo
+  // ← NO se descarga nada automáticamente aquí
 }
 
 async function enviarAlWebhook() {
@@ -254,7 +254,7 @@ async function enviarAlWebhook() {
   const numero = indiceEnvio + 1;
 
   try {
-    // Proxy CORS para saltar bloqueo
+    // Proxy CORS (necesario para saltar bloqueo del navegador)
     const proxy = 'https://cors-anywhere.herokuapp.com/';
     const response = await fetch(proxy + url);
     if (!response.ok) throw new Error(`Fallo descarga: ${response.status}`);
