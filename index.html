@@ -116,7 +116,7 @@
 
   <p>
     Selecciona varios archivos .txt a la vez.<br>
-    Combina todos los enlaces en un solo archivo (sin duplicados) y te dice cuántos encontró.
+    Combina todos los enlaces (sin duplicados) y muestra el total recolectado al final.
   </p>
 
   <input type="file" id="fileInput" accept=".txt,text/plain" multiple>
@@ -209,7 +209,6 @@ async function procesarArchivos() {
   fileList.style.display = 'block';
 
   status.textContent = `Leyendo ${input.files.length} archivo(s)...`;
-  status.className = '';
 
   const todosUrls = new Set();
 
@@ -226,7 +225,7 @@ async function procesarArchivos() {
   const urlsUnicas = Array.from(todosUrls).filter(url => url.length > 10);
 
   if (urlsUnicas.length === 0) {
-    status.textContent = 'No se encontraron enlaces válidos en los archivos';
+    status.textContent = 'No se encontraron enlaces válidos';
     status.className = 'warning';
     preview.textContent = '(vista previa vacía)';
     return;
@@ -234,23 +233,26 @@ async function procesarArchivos() {
 
   let textoSalida = '';
 
-  // Encabezado simple con conteo
+  // Encabezado
   textoSalida += `Total de enlaces únicos encontrados: ${urlsUnicas.length}\n`;
   textoSalida += `Procesado desde ${input.files.length} archivo(s)\n\n`;
 
+  // Lista de enlaces
   urlsUnicas.forEach(url => {
     const tipo = detectarTipo(url);
     textoSalida += `[${tipo}] ${url}\n\n`;
   });
 
+  // Pie con total recolectado y firma
   textoSalida += '──────────────────────────────\n';
+  textoSalida += `Total de enlaces recolectados: ${urlsUnicas.length}\n`;
   textoSalida += 'Hecho por Lynox Hub\n';
   textoSalida += 'Discord: https://discord.gg/spWx8vKT\n';
 
-  // Mostrar vista previa
+  // Vista previa
   preview.textContent = textoSalida.trim();
 
-  // Descargar
+  // Descarga
   const blob = new Blob([textoSalida], { type: 'text/plain;charset=utf-8' });
   const urlBlob = URL.createObjectURL(blob);
 
@@ -263,7 +265,7 @@ async function procesarArchivos() {
   document.body.removeChild(enlace);
   URL.revokeObjectURL(urlBlob);
 
-  status.textContent = `¡Listo! Descargado con ${urlsUnicas.length} enlaces únicos`;
+  status.textContent = `¡Descargado! (${urlsUnicas.length} enlaces recolectados)`;
   status.className = 'success';
 }
 </script>
