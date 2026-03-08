@@ -182,13 +182,6 @@ function detectarTipo(url) {
   }
 }
 
-function obtenerFechaHoy() {
-  const ahora = new Date();
-  return ahora.getFullYear() + '-' +
-         String(ahora.getMonth() + 1).padStart(2, '0') + '-' +
-         String(ahora.getDate()).padStart(2, '0');
-}
-
 function extraerUrls(texto) {
   const regex = /https?:\/\/[^\s<>"'()]+/gi;
   return texto.match(regex) || [];
@@ -230,7 +223,7 @@ async function procesarArchivos() {
     }
   }
 
-  const urlsUnicas = Array.from(todosUrls).filter(url => url.length > 10); // filtro básico de urls muy cortas
+  const urlsUnicas = Array.from(todosUrls).filter(url => url.length > 10);
 
   if (urlsUnicas.length === 0) {
     status.textContent = 'No se encontraron enlaces válidos en los archivos';
@@ -239,17 +232,15 @@ async function procesarArchivos() {
     return;
   }
 
-  const fecha = obtenerFechaHoy();
   let textoSalida = '';
 
-  // Encabezado con conteo
+  // Encabezado simple con conteo
   textoSalida += `Total de enlaces únicos encontrados: ${urlsUnicas.length}\n`;
-  textoSalida += `Procesado desde ${input.files.length} archivo(s)\n`;
-  textoSalida += `Fecha: ${fecha}\n\n`;
+  textoSalida += `Procesado desde ${input.files.length} archivo(s)\n\n`;
 
   urlsUnicas.forEach(url => {
     const tipo = detectarTipo(url);
-    textoSalida += `[${tipo}] ${url}\n${fecha}\n\n`;
+    textoSalida += `[${tipo}] ${url}\n\n`;
   });
 
   textoSalida += '──────────────────────────────\n';
@@ -265,7 +256,7 @@ async function procesarArchivos() {
 
   const enlace = document.createElement('a');
   enlace.href = urlBlob;
-  enlace.download = `enlaces_combinados_${fecha}.txt`;
+  enlace.download = 'enlaces_combinados.txt';
   document.body.appendChild(enlace);
   enlace.click();
 
