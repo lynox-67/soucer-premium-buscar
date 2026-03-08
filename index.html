@@ -22,7 +22,6 @@
       font-family: 'Vt323', monospace;
     }
 
-    /* Video Matrix de fondo */
     #bg-video {
       position: fixed;
       right: 0;
@@ -33,7 +32,6 @@
       object-fit: cover;
     }
 
-    /* Overlay Matrix rain más visible */
     #matrix-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -49,14 +47,12 @@
       white-space: pre;
       text-shadow: 0 0 10px var(--verde-neon);
       animation: fall linear forwards;
-      will-change: transform;
     }
 
     @keyframes fall {
       to { transform: translateY(120vh); }
     }
 
-    /* Contenedor principal semi-transparente */
     .container {
       position: relative;
       z-index: 10;
@@ -67,7 +63,7 @@
       margin: 20px auto;
       padding: 30px;
       max-width: 900px;
-      box-shadow: 0 0 40px rgba(0,255,65,0.5);
+      box-shadow: 0 0 40px rgba(0,255,65,0.4);
     }
 
     h1 {
@@ -77,22 +73,6 @@
       color: var(--verde-lima);
       text-shadow: 0 0 20px var(--verde-neon);
       margin-bottom: 10px;
-      letter-spacing: 4px;
-      animation: glitch 4s infinite;
-    }
-
-    @keyframes glitch {
-      0%, 100% { text-shadow: 2px 2px var(--verde-neon), -2px -2px #00aa00; }
-      20% { text-shadow: -2px 2px var(--verde-neon), 2px -2px #00aa00; }
-      40% { text-shadow: 2px -2px var(--verde-neon), -2px 2px #00aa00; }
-    }
-
-    .by {
-      text-align: center;
-      font-size: 1.4rem;
-      color: #00ff4188;
-      margin-bottom: 20px;
-      text-shadow: 0 0 10px var(--verde-neon);
     }
 
     input[type="file"], textarea {
@@ -116,7 +96,6 @@
       font-size: 1.3rem;
       cursor: pointer;
       box-shadow: 0 0 20px rgba(0,255,65,0.6);
-      transition: all 0.2s;
     }
 
     button:hover {
@@ -130,7 +109,7 @@
       border-radius: 10px;
       margin: 20px 0;
       font-size: 1.3rem;
-      border-left: 6px solid var(--verde-lima);
+      border-left: 8px solid var(--verde-lima);
       white-space: pre-line;
     }
 
@@ -157,7 +136,6 @@
 
 <video autoplay muted loop playsinline id="bg-video">
   <source src="https://www.youtube.com/embed/R8lHaEZYpCU?autoplay=1&mute=1&loop=1&playlist=R8lHaEZYpCU&controls=0&showinfo=0&rel=0&modestbranding=1" type="video/mp4">
-  Tu navegador no soporta video de fondo.
 </video>
 
 <div id="matrix-overlay"></div>
@@ -167,7 +145,7 @@
   <div class="by">HECHO POR LYNX EL HACKER LOCO</div>
 
   <p style="text-align:center; font-size:1.3rem; margin:20px 0;">
-    Solo cazo https://cdn.discordapp.com/attachments/... → uno por segundo (seguro)
+    Solo cazo https://cdn.discordapp.com/attachments/... → envío el ARCHIVO REAL (uno por segundo)
   </p>
 
   <input type="file" id="fileInput" accept=".txt" multiple>
@@ -189,7 +167,7 @@
 </div>
 
 <script>
-// Matrix rain más intenso
+// Matrix rain
 const matrixOverlay = document.getElementById('matrix-overlay');
 const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*';
 
@@ -203,13 +181,12 @@ function createMatrixChar() {
   char.style.opacity = Math.random() * 0.7 + 0.3;
   char.style.fontSize = Math.random() * 18 + 14 + 'px';
   matrixOverlay.appendChild(char);
-
   setTimeout(() => char.remove(), 12000);
 }
 
 setInterval(createMatrixChar, 30);
 
-// Lógica funcional (solo cdn attachments)
+// Lógica principal
 let linksFiltrados = [];
 let intervaloEnvio = null;
 let indiceEnvio = 0;
@@ -224,37 +201,14 @@ function mostrarEstado(texto, tipo = '') {
 }
 
 function esCdnAttachment(url) {
-  try {
-    return url.toLowerCase().startsWith('https://cdn.discordapp.com/attachments/');
-  } catch {
-    return false;
-  }
-}
-
-function descargarTXT() {
-  if (linksFiltrados.length === 0) return;
-
-  let contenido = `Archivos Discord CDN encontrados: ${linksFiltrados.length}\n\n`;
-  linksFiltrados.forEach((url, i) => {
-    contenido += `${i + 1}. ${url}\n`;
-  });
-  contenido += '\n──────────────────────────────\n';
-  contenido += `Total: ${linksFiltrados.length}\nHecho por Lynox Hub\n`;
-
-  const blob = new Blob([contenido], { type: 'text/plain;charset=utf-8' });
-  const urlBlob = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = urlBlob;
-  a.download = 'cdn_discord_files.txt';
-  a.click();
-  URL.revokeObjectURL(urlBlob);
+  return url.toLowerCase().startsWith('https://cdn.discordapp.com/attachments/');
 }
 
 async function procesarArchivos() {
   const input = document.getElementById('fileInput');
-  if (!input.files?.length) return mostrarEstado('Suelta archivos .txt primero', 'error');
+  if (!input.files?.length) return mostrarEstado('Selecciona archivos .txt primero', 'error');
 
-  mostrarEstado(`Extrayendo ${input.files.length} archivos...`);
+  mostrarEstado(`Leyendo ${input.files.length} archivo(s)...`);
 
   const setUrls = new Set();
 
@@ -271,15 +225,13 @@ async function procesarArchivos() {
   linksFiltrados = Array.from(setUrls);
 
   if (linksFiltrados.length === 0) {
-    mostrarEstado('No encontré ningún https://cdn.discordapp.com/attachments/', 'warning');
+    mostrarEstado('No encontré enlaces cdn.discordapp.com/attachments', 'warning');
     preview.textContent = '';
     return;
   }
 
   preview.textContent = linksFiltrados.map((url, i) => `${i+1}. ${url}`).join('\n');
   mostrarEstado(`Listo: ${linksFiltrados.length} archivos encontrados`, 'success');
-
-  descargarTXT();
 }
 
 async function enviarAlWebhook() {
@@ -291,7 +243,7 @@ async function enviarAlWebhook() {
   }
 
   if (indiceEnvio >= linksFiltrados.length) {
-    mostrarEstado(`Hack completado (${linksFiltrados.length} archivos)`, 'success');
+    mostrarEstado(`¡Terminado! (${linksFiltrados.length} archivos enviados)`, 'success');
     clearInterval(intervaloEnvio);
     intervaloEnvio = null;
     return;
@@ -299,19 +251,30 @@ async function enviarAlWebhook() {
 
   const url = linksFiltrados[indiceEnvio];
   const numero = indiceEnvio + 1;
-  const mensaje = `${numero}. ${url}\nHecho por Lynox Hub`;
 
   try {
+    // Descargar el archivo desde el CDN
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Fallo descarga: ${response.status}`);
+
+    const blob = await response.blob();
+    const fileName = url.split('/').pop() || `archivo_${numero}`;
+
+    const formData = new FormData();
+    formData.append('file', blob, fileName);
+    formData.append('payload_json', JSON.stringify({
+      content: `**Archivo ${numero}/${linksFiltrados.length}** - ${fileName}\nHecho por Lynox Hub`
+    }));
+
     const res = await fetch(webhook, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: mensaje })
+      body: formData
     });
 
     if (res.ok) {
-      mostrarEstado(`Enviado ${numero}/${linksFiltrados.length}`);
+      mostrarEstado(`Enviado ${numero}/${linksFiltrados.length} (${fileName})`);
     } else if (res.status === 429) {
-      mostrarEstado('Rate limit detectado (429) → parando', 'warning');
+      mostrarEstado('Rate limit (429) → parando', 'warning');
       clearInterval(intervaloEnvio);
       intervaloEnvio = null;
     } else {
@@ -319,7 +282,7 @@ async function enviarAlWebhook() {
       clearInterval(intervaloEnvio);
     }
   } catch (err) {
-    mostrarEstado(`Fallo conexión: ${err.message}`, 'error');
+    mostrarEstado(`Fallo al enviar ${numero}: ${err.message}`, 'error');
     clearInterval(intervaloEnvio);
   }
 
@@ -332,7 +295,7 @@ document.getElementById('startSend').onclick = () => {
   if (linksFiltrados.length === 0) return mostrarEstado('Carga archivos primero', 'warning');
   if (intervaloEnvio) return;
 
-  mostrarEstado('Iniciando extracción... 1 por segundo (seguro)');
+  mostrarEstado('Iniciando hack... 1 archivo por segundo (seguro)');
   intervaloEnvio = setInterval(enviarAlWebhook, 1000);
 };
 
@@ -341,7 +304,7 @@ document.getElementById('stopSend').onclick = () => {
     clearInterval(intervaloEnvio);
     intervaloEnvio = null;
   }
-  mostrarEstado('Operación abortada');
+  mostrarEstado('Hack detenido');
 };
 </script>
 </body>
