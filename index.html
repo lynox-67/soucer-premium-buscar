@@ -115,8 +115,8 @@
   </div>
 
   <p>
-    Ahora puedes seleccionar varios archivos .txt a la vez.<br>
-    Todos los enlaces se juntan en **un solo archivo** (sin duplicados).
+    Selecciona varios archivos .txt a la vez.<br>
+    Combina todos los enlaces en un solo archivo (sin duplicados) y te dice cuántos encontró.
   </p>
 
   <input type="file" id="fileInput" accept=".txt,text/plain" multiple>
@@ -125,7 +125,7 @@
     Archivos seleccionados: <span id="fileCount">0</span>
   </div>
 
-  <button onclick="procesarArchivos()">Procesar todos y descargar un solo TXT</button>
+  <button onclick="procesarArchivos()">Procesar todos y descargar TXT</button>
 
   <div id="status"></div>
 
@@ -138,9 +138,7 @@
 </div>
 
 <script>
-// ────────────────────────────────────────────────
 // Clasificación de enlaces
-// ────────────────────────────────────────────────
 const clasificacion = {
   'youtube.com':       'YouTube',
   'youtu.be':          'YouTube',
@@ -197,10 +195,10 @@ function extraerUrls(texto) {
 }
 
 async function procesarArchivos() {
-  const input    = document.getElementById('fileInput');
-  const status   = document.getElementById('status');
-  const preview  = document.getElementById('preview');
-  const fileList = document.getElementById('fileList');
+  const input     = document.getElementById('fileInput');
+  const status    = document.getElementById('status');
+  const preview   = document.getElementById('preview');
+  const fileList  = document.getElementById('fileList');
   const fileCount = document.getElementById('fileCount');
 
   status.textContent = '';
@@ -220,30 +218,34 @@ async function procesarArchivos() {
   status.textContent = `Leyendo ${input.files.length} archivo(s)...`;
   status.className = '';
 
-  const todosUrls = new Set(); // para evitar duplicados globales
+  const todosUrls = new Set();
 
   for (const archivo of input.files) {
     try {
       const texto = await archivo.text();
       const urlsEncontradas = extraerUrls(texto);
-      urlsEncontradas.forEach(url => todosUrls.add(url));
+      urlsEncontradas.forEach(url => todosUrls.add(url.trim()));
     } catch (err) {
-      console.error(`Error leyendo ${archivo.name}:`, err);
+      console.error(`Error en ${archivo.name}:`, err);
     }
   }
 
-  const urlsUnicas = Array.from(todosUrls);
+  const urlsUnicas = Array.from(todosUrls).filter(url => url.length > 10); // filtro básico de urls muy cortas
 
   if (urlsUnicas.length === 0) {
-    status.textContent = 'No se encontraron enlaces en ninguno de los archivos';
+    status.textContent = 'No se encontraron enlaces válidos en los archivos';
     status.className = 'warning';
     preview.textContent = '(vista previa vacía)';
     return;
   }
 
   const fecha = obtenerFechaHoy();
-  let textoSalida = `Total de enlaces únicos encontrados: ${urlsUnicas.length}\n`;
-  textoSalida += `Procesado el: ${fecha}\n\n`;
+  let textoSalida = '';
+
+  // Encabezado con conteo
+  textoSalida += `Total de enlaces únicos encontrados: ${urlsUnicas.length}\n`;
+  textoSalida += `Procesado desde ${input.files.length} archivo(s)\n`;
+  textoSalida += `Fecha: ${fecha}\n\n`;
 
   urlsUnicas.forEach(url => {
     const tipo = detectarTipo(url);
@@ -254,10 +256,10 @@ async function procesarArchivos() {
   textoSalida += 'Hecho por Lynox Hub\n';
   textoSalida += 'Discord: https://discord.gg/spWx8vKT\n';
 
-  // Vista previa
+  // Mostrar vista previa
   preview.textContent = textoSalida.trim();
 
-  // Descarga
+  // Descargar
   const blob = new Blob([textoSalida], { type: 'text/plain;charset=utf-8' });
   const urlBlob = URL.createObjectURL(blob);
 
@@ -270,7 +272,7 @@ async function procesarArchivos() {
   document.body.removeChild(enlace);
   URL.revokeObjectURL(urlBlob);
 
-  status.textContent = `¡Descargado! (${urlsUnicas.length} enlaces únicos de ${input.files.length} archivo(s))`;
+  status.textContent = `¡Listo! Descargado con ${urlsUnicas.length} enlaces únicos`;
   status.className = 'success';
 }
 </script>
