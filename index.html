@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Extraer + Enviar a Webhook - Lynox Hub</title>
+  <title>Extraer + Enviar a 5 Webhooks - Lynox Hub</title>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 1100px; margin: 30px auto; padding: 0 20px; background: #f9fafb; color: #111; line-height: 1.6; }
     h1 { color: #1d4ed8; text-align: center; }
@@ -13,33 +13,42 @@
     button { padding: 0.8rem 1.5rem; margin: 0.5rem; border: none; border-radius: 8px; font-size: 1.05rem; cursor: pointer; }
     #startSend { background: #22c55e; color: white; }
     #stopSend  { background: #ef4444; color: white; }
-    #status { margin: 1rem 0; font-weight: 600; min-height: 1.5em; }
+    #status { margin: 1rem 0; font-weight: 600; min-height: 1.5em; white-space: pre-line; }
     .success { color: #15803d; }
     .warning { color: #b45309; }
     .error   { color: #b91c1c; }
-    textarea { width: 100%; height: 120px; padding: 12px; font-family: monospace; border: 1px solid #ccc; border-radius: 6px; margin: 1rem 0; resize: vertical; }
-    label { font-weight: 600; display: block; margin-bottom: 0.5rem; }
-    #preview { margin-top: 1.5rem; padding: 1rem; background: #f1f5f9; border-radius: 8px; white-space: pre-wrap; font-family: monospace; font-size: 0.95rem; max-height: 300px; overflow-y: auto; }
+    textarea { width: 100%; height: 160px; padding: 12px; font-family: monospace; border: 1px solid #ccc; border-radius: 6px; margin: 0.5rem 0; }
+    label { font-weight: 600; display: block; margin-top: 1rem; }
+    input[type="number"] { width: 100%; padding: 10px; margin: 0.5rem 0; }
+    #preview { margin-top: 1.5rem; padding: 1rem; background: #f1f5f9; border-radius: 8px; white-space: pre-wrap; font-family: monospace; font-size: 0.95rem; max-height: 350px; overflow-y: auto; }
     .footer { text-align: center; margin-top: 2rem; color: #666; }
   </style>
 </head>
 <body>
 
 <div class="container">
-  <h1>Extraer enlaces + Enviar a Webhook de Discord</h1>
+  <h1>Extraer + Enviar a varios Webhooks (hasta 5)</h1>
   <div class="by">Hecho por Lynox Hub</div>
   <div class="discord">Discord: <a href="https://discord.gg/spWx8vKT" target="_blank">https://discord.gg/spWx8vKT</a></div>
 
-  <p>1. Sube archivos .txt → filtra imágenes, videos y discord.gg<br>2. Pega tu webhook abajo → envía los enlaces al canal de Discord</p>
+  <p>
+    Sube archivos → filtra enlaces → descarga TXT completo<br>
+    Pega varios webhooks (uno por línea) → divide y envía numerado
+  </p>
 
   <input type="file" id="fileInput" accept=".txt" multiple>
 
-  <label for="webhookUrl">Webhook de Discord (ej: https://discord.com/api/webhooks/...):</label>
-  <textarea id="webhookUrl" placeholder="Pega aquí tu webhook completo..."></textarea>
+  <label for="webhooks">Webhooks (uno por línea, máximo 5 recomendados):</label>
+  <textarea id="webhooks" placeholder="https://discord.com/api/webhooks/123/abc
+https://discord.com/api/webhooks/456/def
+..."></textarea>
+
+  <label for="delayMs">Delay entre mensajes por webhook (ms) — 600 ms = seguro, 400 ms = más rápido pero riesgo</label>
+  <input type="number" id="delayMs" value="600" min="300" max="3000" step="50">
 
   <div style="margin: 1.5rem 0;">
-    <button id="startSend">Iniciar envío al webhook (cada 2s)</button>
-    <button id="stopSend">Parar envío</button>
+    <button id="startSend">Iniciar envío dividido</button>
+    <button id="stopSend">Parar todo</button>
   </div>
 
   <div id="status"></div>
@@ -50,12 +59,13 @@
 
 <script>
 let linksFiltrados = [];
-let intervaloEnvio = null;
-let indiceEnvio = 0;
+let intervalos = [];
+let contadores = [];
 
 const status = document.getElementById('status');
 const preview = document.getElementById('preview');
-const webhookInput = document.getElementById('webhookUrl');
+const webhooksInput = document.getElementById('webhooks');
+const delayInput = document.getElementById('delayMs');
 
 function mostrarEstado(texto, tipo = '') {
   status.textContent = texto;
@@ -66,16 +76,15 @@ function clasificarLink(url) {
   try {
     const u = new URL(url.toLowerCase());
     const path = u.pathname.toLowerCase();
-    const host = u.hostname.toLowerCase();
 
-    if (host.includes('discord.gg') || host.includes('discord.com/invite') || host.includes('discordapp.com')) {
-      return { tipo: 'Discord', texto: `**Únete al servidor:** ${url}` };
+    if (url.toLowerCase().includes('discord.gg') || url.toLowerCase().includes('discord.com/invite')) {
+      return url.trim();
     }
     if (/\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(path)) {
-      return { tipo: 'Imagen', texto: `**Imagen:** ${url}` };
+      return url.trim();
     }
     if (/\.(mp4|webm|mov|avi|mkv)$/i.test(path)) {
-      return { tipo: 'Video', texto: `**Video:** ${url}` };
+      return url.trim();
     }
     return null;
   } catch {
@@ -83,14 +92,33 @@ function clasificarLink(url) {
   }
 }
 
-async function cargarArchivos() {
+function descargarTXT() {
+  if (linksFiltrados.length === 0) return;
+
+  let contenido = `Enlaces filtrados: ${linksFiltrados.length}\n\n`;
+  linksFiltrados.forEach((url, i) => {
+    contenido += `${i + 1}. ${url}\n`;
+  });
+  contenido += '\n──────────────────────────────\n';
+  contenido += `Total recolectados: ${linksFiltrados.length}\n`;
+  contenido += 'Hecho por Lynox Hub\nDiscord: https://discord.gg/spWx8vKT\n';
+
+  const blob = new Blob([contenido], { type: 'text/plain;charset=utf-8' });
+  const urlBlob = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = urlBlob;
+  a.download = 'enlaces_filtrados.txt';
+  a.click();
+  URL.revokeObjectURL(urlBlob);
+}
+
+async function procesarArchivos() {
   const input = document.getElementById('fileInput');
   if (!input.files?.length) return mostrarEstado('Selecciona archivos primero', 'error');
 
   mostrarEstado(`Leyendo ${input.files.length} archivo(s)...`);
 
   const setUrls = new Set();
-
   for (const file of input.files) {
     try {
       const txt = await file.text();
@@ -99,9 +127,7 @@ async function cargarArchivos() {
     } catch {}
   }
 
-  linksFiltrados = Array.from(setUrls)
-    .map(url => clasificarLink(url))
-    .filter(Boolean);
+  linksFiltrados = Array.from(setUrls).map(clasificarLink).filter(Boolean);
 
   if (linksFiltrados.length === 0) {
     mostrarEstado('No se encontraron enlaces válidos', 'warning');
@@ -109,67 +135,96 @@ async function cargarArchivos() {
     return;
   }
 
-  preview.textContent = linksFiltrados.map(item => item.texto).join('\n\n');
+  preview.textContent = linksFiltrados.map((url, i) => `${i+1}. ${url}`).join('\n');
   mostrarEstado(`Listo: ${linksFiltrados.length} enlaces filtrados`, 'success');
-  indiceEnvio = 0;
+
+  descargarTXT();
 }
 
-async function enviarAlWebhook() {
-  const webhook = webhookInput.value.trim();
-  if (!webhook || !webhook.startsWith('https://discord.com/api/webhooks/')) {
-    mostrarEstado('Webhook inválido o vacío. Pégalo correctamente.', 'error');
-    return;
-  }
+async function enviarParte(webhook, parteLinks, parteIndex) {
+  let localIndex = 0;
+  const delay = parseInt(delayInput.value) || 600;
 
-  if (indiceEnvio >= linksFiltrados.length) {
-    mostrarEstado(`Envío completado (${linksFiltrados.length} enlaces)`, 'success');
-    clearInterval(intervaloEnvio);
-    intervaloEnvio = null;
-    return;
-  }
-
-  const mensaje = linksFiltrados[indiceEnvio].texto;
-
-  try {
-    const res = await fetch(webhook, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: mensaje })
-    });
-
-    if (res.ok) {
-      mostrarEstado(`Enviado ${indiceEnvio + 1}/${linksFiltrados.length}: ${mensaje.substring(0, 60)}...`);
-    } else {
-      mostrarEstado(`Error al enviar (${res.status}): ${await res.text()}`, 'error');
-      clearInterval(intervaloEnvio);
-      intervaloEnvio = null;
+  const intervalo = setInterval(async () => {
+    if (localIndex >= parteLinks.length) {
+      clearInterval(intervalo);
+      intervalos[parteIndex] = null;
+      mostrarEstado(`Webhook ${parteIndex + 1} terminado (${parteLinks.length} mensajes)`);
       return;
     }
-  } catch (err) {
-    mostrarEstado(`Error de red: ${err.message}`, 'error');
-    clearInterval(intervaloEnvio);
-    intervaloEnvio = null;
-  }
 
-  indiceEnvio++;
+    const url = parteLinks[localIndex];
+    const numeroGlobal = parteIndex * Math.ceil(linksFiltrados.length / 5) + localIndex + 1;
+    const mensaje = `${numeroGlobal}. ${url}\nHecho por Lynox Hub`;
+
+    try {
+      const res = await fetch(webhook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: mensaje })
+      });
+
+      if (res.ok) {
+        // éxito
+      } else if (res.status === 429) {
+        mostrarEstado(`Rate limit en webhook ${parteIndex + 1} → parando ese webhook`, 'warning');
+        clearInterval(intervalo);
+        intervalos[parteIndex] = null;
+        return;
+      } else {
+        mostrarEstado(`Error ${res.status} en webhook ${parteIndex + 1}`, 'error');
+        clearInterval(intervalo);
+        intervalos[parteIndex] = null;
+        return;
+      }
+    } catch (err) {
+      mostrarEstado(`Fallo conexión webhook ${parteIndex + 1}: ${err.message}`, 'error');
+      clearInterval(intervalo);
+      intervalos[parteIndex] = null;
+      return;
+    }
+
+    localIndex++;
+  }, delay);
+
+  intervalos[parteIndex] = intervalo;
 }
 
-document.getElementById('fileInput').addEventListener('change', cargarArchivos);
+document.getElementById('fileInput').addEventListener('change', procesarArchivos);
 
 document.getElementById('startSend').onclick = () => {
-  if (linksFiltrados.length === 0) return mostrarEstado('Primero carga archivos', 'warning');
-  if (intervaloEnvio) return;
+  if (linksFiltrados.length === 0) return mostrarEstado('Primero carga y filtra enlaces', 'warning');
 
-  mostrarEstado('Iniciando envío al webhook (cada 2 segundos)...');
-  intervaloEnvio = setInterval(enviarAlWebhook, 2000);
+  const webhooksText = webhooksInput.value.trim();
+  if (!webhooksText) return mostrarEstado('Pega al menos un webhook', 'error');
+
+  const webhooks = webhooksText.split('\n').map(w => w.trim()).filter(w => w.startsWith('https://discord.com/api/webhooks/'));
+
+  if (webhooks.length === 0) return mostrarEstado('Ningún webhook válido detectado', 'error');
+  if (webhooks.length > 5) mostrarEstado('Más de 5 webhooks → usando solo los primeros 5', 'warning');
+
+  const usados = webhooks.slice(0, 5);
+  const porWebhook = Math.ceil(linksFiltrados.length / usados.length);
+  intervalos = new Array(usados.length).fill(null);
+
+  mostrarEstado(`Iniciando envío dividido en ${usados.length} webhooks...`);
+
+  usados.forEach((webhook, i) => {
+    const inicio = i * porWebhook;
+    const fin = Math.min(inicio + porWebhook, linksFiltrados.length);
+    const parte = linksFiltrados.slice(inicio, fin);
+    if (parte.length > 0) {
+      enviarParte(webhook, parte, i);
+    }
+  });
 };
 
 document.getElementById('stopSend').onclick = () => {
-  if (intervaloEnvio) {
-    clearInterval(intervaloEnvio);
-    intervaloEnvio = null;
-  }
-  mostrarEstado('Envío parado. Puedes continuar o recargar la página.');
+  intervalos.forEach(int => {
+    if (int) clearInterval(int);
+  });
+  intervalos = [];
+  mostrarEstado('Todos los envíos detenidos');
 };
 </script>
 </body>
