@@ -3,165 +3,160 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Extraer Imágenes, Videos y Discord Invites - Lynox Hub</title>
+  <title>Extraer y abrir Imágenes / Videos / Discord - Lynox Hub</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 1000px; margin: 40px auto; padding: 0 20px; background: #f9fafb; color: #111827; line-height: 1.6; }
-    h1 { color: #1e40af; text-align: center; margin-bottom: 0.4rem; }
-    .by { text-align: center; color: #4b5563; font-size: 0.95rem; margin-bottom: 1.2rem; }
-    .discord { text-align: center; color: #5865F2; font-weight: 600; margin: 0.6rem 0 2rem 0; font-size: 1.05rem; }
-    .container { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-    p { margin-bottom: 1.5rem; color: #4b5563; }
-    input[type="file"] { margin: 1.5rem 0; padding: 0.5rem; }
-    button { background: #2563eb; color: white; border: none; padding: 0.9rem 2rem; border-radius: 8px; font-size: 1.05rem; cursor: pointer; }
-    button:hover { background: #1d4ed8; }
-    #status { margin: 1.2rem 0; font-weight: 500; min-height: 1.4em; }
+    body { font-family: system-ui, sans-serif; max-width: 1100px; margin: 30px auto; padding: 0 20px; background: #f9fafb; color: #111; line-height: 1.6; }
+    h1 { color: #1d4ed8; text-align: center; }
+    .by { text-align: center; color: #666; margin-bottom: 1rem; }
+    .discord { text-align: center; color: #5865f2; font-weight: bold; margin: 0.5rem 0 1.5rem; }
+    .container { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+    button { padding: 0.8rem 1.5rem; margin: 0.5rem; border: none; border-radius: 8px; font-size: 1.05rem; cursor: pointer; }
+    #startSeq { background: #22c55e; color: white; }
+    #startAuto { background: #eab308; color: white; }
+    #stopBtn  { background: #ef4444; color: white; }
+    #status { margin: 1rem 0; font-weight: 600; min-height: 1.5em; }
     .success { color: #15803d; }
     .warning { color: #b45309; }
-    .error { color: #b91c1c; }
-    #preview { margin-top: 1.5rem; padding: 1.2rem; background: #f1f5f9; border: 1px solid #e5e7eb; border-radius: 8px; white-space: pre-wrap; font-family: 'Consolas', monospace; font-size: 0.92rem; max-height: 400px; overflow-y: auto; line-height: 1.5; }
-    .file-list { margin: 1rem 0; padding: 0.8rem; background: #f3f4f6; border-radius: 6px; font-size: 0.9rem; }
-    .footer { text-align: center; margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb; color: #4b5563; font-size: 0.95rem; }
-    .discord-link { color: #5865F2; font-weight: 600; text-decoration: none; }
-    .discord-link:hover { text-decoration: underline; }
+    .error   { color: #b91c1c; }
+    #preview { margin-top: 1.5rem; padding: 1rem; background: #f1f5f9; border-radius: 8px; white-space: pre-wrap; font-family: monospace; font-size: 0.95rem; max-height: 300px; overflow-y: auto; }
+    .footer { text-align: center; margin-top: 2rem; color: #666; }
   </style>
 </head>
 <body>
 
 <div class="container">
-  <h1>Extraer solo Imágenes, Videos y Discord Invites</h1>
+  <h1>Extraer y abrir enlaces (Imágenes / Videos / Discord)</h1>
   <div class="by">Hecho por Lynox Hub</div>
-  <div class="discord">
-    <a href="https://discord.gg/spWx8vKT" target="_blank" class="discord-link">https://discord.gg/spWx8vKT</a>
+  <div class="discord">Discord: <a href="https://discord.gg/spWx8vKT" target="_blank">https://discord.gg/spWx8vKT</a></div>
+
+  <p>Sube .txt → filtra solo imágenes, videos y discord.gg → abre uno por uno o automático (cuidado con popup blocker)</p>
+
+  <input type="file" id="fileInput" accept=".txt" multiple>
+
+  <div style="margin: 1.5rem 0;">
+    <button id="startSeq">Iniciar secuencial (uno por click)</button>
+    <button id="startAuto">Auto cada 2 segundos</button>
+    <button id="stopBtn">Parar / Limpiar</button>
   </div>
-
-  <p>
-    • Imágenes (.jpg, .png, .gif, etc.)<br>
-    • Videos (.mp4, .webm, etc.)<br>
-    • Invitaciones Discord (discord.gg / discord.com/invite)<br>
-    → Los Discord se formatean con Markdown para que se vean bonitos al pegar en Discord
-  </p>
-
-  <input type="file" id="fileInput" accept=".txt,text/plain" multiple>
-
-  <div id="fileList" class="file-list" style="display:none;">
-    Archivos seleccionados: <span id="fileCount">0</span>
-  </div>
-
-  <button onclick="procesarArchivos()">Procesar y descargar TXT</button>
 
   <div id="status"></div>
   <div id="preview"></div>
 
-  <div class="footer">
-    Hecho por Lynox Hub • <a href="https://discord.gg/spWx8vKT" target="_blank" class="discord-link">Discord</a>
-  </div>
+  <div class="footer">Lynox Hub • Discord: https://discord.gg/spWx8vKT</div>
 </div>
 
 <script>
-const categorias = {
-  imagen: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'],
-  video:  ['.mp4', '.webm', '.mov', '.avi', '.mkv'],
-  discord: ['discord.com', 'discordapp.com', 'discord.gg']
-};
+let linksFiltrados = [];
+let intervaloActual = null;
+let indiceActual = 0;
+let pestañasAbiertas = [];
+
+const status = document.getElementById('status');
+const preview = document.getElementById('preview');
+
+function mostrarEstado(texto, tipo = '') {
+  status.textContent = texto;
+  status.className = tipo;
+}
 
 function clasificarLink(url) {
   try {
     const u = new URL(url.toLowerCase());
-    const hostname = u.hostname;
     const path = u.pathname.toLowerCase();
+    const host = u.hostname.toLowerCase();
 
-    if (categorias.discord.some(d => hostname.includes(d) || path.includes(d))) {
-      return { tipo: 'Discord', formato: `[Discord] **[Únete aquí](${url})**` };
+    if (host.includes('discord.gg') || host.includes('discord.com/invite') || host.includes('discordapp.com')) {
+      return { tipo: 'Discord', texto: `[Discord] **Únete →** ${url}` };
     }
-
-    if (categorias.imagen.some(ext => path.endsWith(ext))) {
-      return { tipo: 'Imagen', formato: `[Imagen] ${url}` };
+    if (/\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(path)) {
+      return { tipo: 'Imagen', texto: `[Imagen] ${url}` };
     }
-
-    if (categorias.video.some(ext => path.endsWith(ext))) {
-      return { tipo: 'Video', formato: `[Video] ${url}` };
+    if (/\.(mp4|webm|mov|avi|mkv)$/i.test(path)) {
+      return { tipo: 'Video', texto: `[Video] ${url}` };
     }
-
     return null;
   } catch {
     return null;
   }
 }
 
-function extraerUrls(texto) {
-  const regex = /https?:\/\/[^\s<>"'()]+/gi;
-  return texto.match(regex) || [];
-}
-
-async function procesarArchivos() {
+async function cargarArchivos() {
   const input = document.getElementById('fileInput');
-  const status = document.getElementById('status');
-  const preview = document.getElementById('preview');
-  const fileList = document.getElementById('fileList');
-  const fileCount = document.getElementById('fileCount');
+  if (!input.files?.length) return mostrarEstado('Selecciona al menos un .txt', 'error');
 
-  status.textContent = '';
-  preview.textContent = '';
-  status.className = '';
-  fileList.style.display = 'none';
+  mostrarEstado(`Leyendo ${input.files.length} archivo(s)...`);
 
-  if (!input.files?.length) {
-    status.textContent = 'Selecciona al menos un .txt';
-    status.className = 'error';
-    return;
-  }
+  const setUrls = new Set();
 
-  fileCount.textContent = input.files.length;
-  fileList.style.display = 'block';
-  status.textContent = `Leyendo ${input.files.length} archivo(s)...`;
-
-  const todosUrls = new Set();
-
-  for (const archivo of input.files) {
+  for (const file of input.files) {
     try {
-      const texto = await archivo.text();
-      extraerUrls(texto).forEach(url => todosUrls.add(url.trim()));
-    } catch (err) {
-      console.error(err);
-    }
+      const txt = await file.text();
+      const urls = txt.match(/https?:\/\/[^\s<>"'()]+/gi) || [];
+      urls.forEach(u => setUrls.add(u.trim()));
+    } catch {}
   }
 
-  const filtrados = Array.from(todosUrls)
+  linksFiltrados = Array.from(setUrls)
     .map(url => clasificarLink(url))
     .filter(Boolean);
 
-  if (filtrados.length === 0) {
-    status.textContent = 'No se encontraron imágenes, videos ni invites de Discord';
-    status.className = 'warning';
-    preview.textContent = '(vacío)';
+  if (linksFiltrados.length === 0) {
+    mostrarEstado('No se encontraron enlaces válidos (solo img/video/discord)', 'warning');
+    preview.textContent = '';
     return;
   }
 
-  let textoSalida = `Enlaces recolectados: ${filtrados.length}\n`;
-  textoSalida += `Desde ${input.files.length} archivo(s)\n\n`;
-
-  filtrados.forEach(item => {
-    textoSalida += item.formato + '\n\n';
-  });
-
-  textoSalida += '──────────────────────────────\n';
-  textoSalida += `Total de enlaces recolectados: ${filtrados.length}\n`;
-  textoSalida += 'Hecho por Lynox Hub\n';
-  textoSalida += 'Discord: https://discord.gg/spWx8vKT\n';
-
-  preview.textContent = textoSalida.trim();
-
-  const blob = new Blob([textoSalida], { type: 'text/plain;charset=utf-8' });
-  const urlBlob = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = urlBlob;
-  a.download = 'imagenes_videos_discord.txt';
-  a.click();
-  URL.revokeObjectURL(urlBlob);
-
-  status.textContent = `¡Descargado! (${filtrados.length} enlaces)`;
-  status.className = 'success';
+  preview.textContent = linksFiltrados.map(item => item.texto).join('\n\n');
+  mostrarEstado(`Listo → ${linksFiltrados.length} enlaces filtrados`, 'success');
+  indiceActual = 0;
 }
+
+function abrirSiguiente() {
+  if (indiceActual >= linksFiltrados.length) {
+    mostrarEstado('Todos los enlaces abiertos', 'success');
+    clearInterval(intervaloActual);
+    intervaloActual = null;
+    return;
+  }
+
+  const url = linksFiltrados[indiceActual].texto.match(/https?:\/\/[^\s]+/)[0];
+  const win = window.open(url, '_blank');
+  
+  if (win) {
+    pestañasAbiertas.push(win);
+    mostrarEstado(`Abriendo ${indiceActual + 1}/${linksFiltrados.length} → ${url.substring(0,60)}...`);
+  } else {
+    mostrarEstado('Popup bloqueado → permite popups para este sitio', 'error');
+    clearInterval(intervaloActual);
+    intervaloActual = null;
+  }
+
+  indiceActual++;
+}
+
+document.getElementById('fileInput').addEventListener('change', cargarArchivos);
+
+document.getElementById('startSeq').onclick = () => {
+  if (linksFiltrados.length === 0) return mostrarEstado('Primero carga archivos', 'warning');
+  abrirSiguiente();  // uno por click
+};
+
+document.getElementById('startAuto').onclick = () => {
+  if (linksFiltrados.length === 0) return mostrarEstado('Primero carga archivos', 'warning');
+  if (intervaloActual) return;
+
+  mostrarEstado('Modo automático cada 2 segundos (puede bloquearse)');
+  intervaloActual = setInterval(abrirSiguiente, 2000);
+};
+
+document.getElementById('stopBtn').onclick = () => {
+  if (intervaloActual) {
+    clearInterval(intervaloActual);
+    intervaloActual = null;
+  }
+  mostrarEstado('Parado. Puedes seguir manual o recargar página para limpiar pestañas.');
+  // Nota: no se pueden cerrar automáticamente pestañas abiertas por JS por seguridad
+};
 </script>
 </body>
 </html>
