@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Extraer y abrir Imágenes / Videos / Discord - Lynox Hub</title>
+  <title>Extraer + Enviar a Webhook - Lynox Hub</title>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 1100px; margin: 30px auto; padding: 0 20px; background: #f9fafb; color: #111; line-height: 1.6; }
     h1 { color: #1d4ed8; text-align: center; }
@@ -11,13 +11,14 @@
     .discord { text-align: center; color: #5865f2; font-weight: bold; margin: 0.5rem 0 1.5rem; }
     .container { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
     button { padding: 0.8rem 1.5rem; margin: 0.5rem; border: none; border-radius: 8px; font-size: 1.05rem; cursor: pointer; }
-    #startSeq { background: #22c55e; color: white; }
-    #startAuto { background: #eab308; color: white; }
-    #stopBtn  { background: #ef4444; color: white; }
+    #startSend { background: #22c55e; color: white; }
+    #stopSend  { background: #ef4444; color: white; }
     #status { margin: 1rem 0; font-weight: 600; min-height: 1.5em; }
     .success { color: #15803d; }
     .warning { color: #b45309; }
     .error   { color: #b91c1c; }
+    textarea { width: 100%; height: 120px; padding: 12px; font-family: monospace; border: 1px solid #ccc; border-radius: 6px; margin: 1rem 0; resize: vertical; }
+    label { font-weight: 600; display: block; margin-bottom: 0.5rem; }
     #preview { margin-top: 1.5rem; padding: 1rem; background: #f1f5f9; border-radius: 8px; white-space: pre-wrap; font-family: monospace; font-size: 0.95rem; max-height: 300px; overflow-y: auto; }
     .footer { text-align: center; margin-top: 2rem; color: #666; }
   </style>
@@ -25,18 +26,20 @@
 <body>
 
 <div class="container">
-  <h1>Extraer y abrir enlaces (Imágenes / Videos / Discord)</h1>
+  <h1>Extraer enlaces + Enviar a Webhook de Discord</h1>
   <div class="by">Hecho por Lynox Hub</div>
   <div class="discord">Discord: <a href="https://discord.gg/spWx8vKT" target="_blank">https://discord.gg/spWx8vKT</a></div>
 
-  <p>Sube .txt → filtra solo imágenes, videos y discord.gg → abre uno por uno o automático (cuidado con popup blocker)</p>
+  <p>1. Sube archivos .txt → filtra imágenes, videos y discord.gg<br>2. Pega tu webhook abajo → envía los enlaces al canal de Discord</p>
 
   <input type="file" id="fileInput" accept=".txt" multiple>
 
+  <label for="webhookUrl">Webhook de Discord (ej: https://discord.com/api/webhooks/...):</label>
+  <textarea id="webhookUrl" placeholder="Pega aquí tu webhook completo..."></textarea>
+
   <div style="margin: 1.5rem 0;">
-    <button id="startSeq">Iniciar secuencial (uno por click)</button>
-    <button id="startAuto">Auto cada 2 segundos</button>
-    <button id="stopBtn">Parar / Limpiar</button>
+    <button id="startSend">Iniciar envío al webhook (cada 2s)</button>
+    <button id="stopSend">Parar envío</button>
   </div>
 
   <div id="status"></div>
@@ -47,12 +50,12 @@
 
 <script>
 let linksFiltrados = [];
-let intervaloActual = null;
-let indiceActual = 0;
-let pestañasAbiertas = [];
+let intervaloEnvio = null;
+let indiceEnvio = 0;
 
 const status = document.getElementById('status');
 const preview = document.getElementById('preview');
+const webhookInput = document.getElementById('webhookUrl');
 
 function mostrarEstado(texto, tipo = '') {
   status.textContent = texto;
@@ -66,13 +69,13 @@ function clasificarLink(url) {
     const host = u.hostname.toLowerCase();
 
     if (host.includes('discord.gg') || host.includes('discord.com/invite') || host.includes('discordapp.com')) {
-      return { tipo: 'Discord', texto: `[Discord] **Únete →** ${url}` };
+      return { tipo: 'Discord', texto: `**Únete al servidor:** ${url}` };
     }
     if (/\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(path)) {
-      return { tipo: 'Imagen', texto: `[Imagen] ${url}` };
+      return { tipo: 'Imagen', texto: `**Imagen:** ${url}` };
     }
     if (/\.(mp4|webm|mov|avi|mkv)$/i.test(path)) {
-      return { tipo: 'Video', texto: `[Video] ${url}` };
+      return { tipo: 'Video', texto: `**Video:** ${url}` };
     }
     return null;
   } catch {
@@ -82,7 +85,7 @@ function clasificarLink(url) {
 
 async function cargarArchivos() {
   const input = document.getElementById('fileInput');
-  if (!input.files?.length) return mostrarEstado('Selecciona al menos un .txt', 'error');
+  if (!input.files?.length) return mostrarEstado('Selecciona archivos primero', 'error');
 
   mostrarEstado(`Leyendo ${input.files.length} archivo(s)...`);
 
@@ -101,61 +104,72 @@ async function cargarArchivos() {
     .filter(Boolean);
 
   if (linksFiltrados.length === 0) {
-    mostrarEstado('No se encontraron enlaces válidos (solo img/video/discord)', 'warning');
+    mostrarEstado('No se encontraron enlaces válidos', 'warning');
     preview.textContent = '';
     return;
   }
 
   preview.textContent = linksFiltrados.map(item => item.texto).join('\n\n');
-  mostrarEstado(`Listo → ${linksFiltrados.length} enlaces filtrados`, 'success');
-  indiceActual = 0;
+  mostrarEstado(`Listo: ${linksFiltrados.length} enlaces filtrados`, 'success');
+  indiceEnvio = 0;
 }
 
-function abrirSiguiente() {
-  if (indiceActual >= linksFiltrados.length) {
-    mostrarEstado('Todos los enlaces abiertos', 'success');
-    clearInterval(intervaloActual);
-    intervaloActual = null;
+async function enviarAlWebhook() {
+  const webhook = webhookInput.value.trim();
+  if (!webhook || !webhook.startsWith('https://discord.com/api/webhooks/')) {
+    mostrarEstado('Webhook inválido o vacío. Pégalo correctamente.', 'error');
     return;
   }
 
-  const url = linksFiltrados[indiceActual].texto.match(/https?:\/\/[^\s]+/)[0];
-  const win = window.open(url, '_blank');
-  
-  if (win) {
-    pestañasAbiertas.push(win);
-    mostrarEstado(`Abriendo ${indiceActual + 1}/${linksFiltrados.length} → ${url.substring(0,60)}...`);
-  } else {
-    mostrarEstado('Popup bloqueado → permite popups para este sitio', 'error');
-    clearInterval(intervaloActual);
-    intervaloActual = null;
+  if (indiceEnvio >= linksFiltrados.length) {
+    mostrarEstado(`Envío completado (${linksFiltrados.length} enlaces)`, 'success');
+    clearInterval(intervaloEnvio);
+    intervaloEnvio = null;
+    return;
   }
 
-  indiceActual++;
+  const mensaje = linksFiltrados[indiceEnvio].texto;
+
+  try {
+    const res = await fetch(webhook, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: mensaje })
+    });
+
+    if (res.ok) {
+      mostrarEstado(`Enviado ${indiceEnvio + 1}/${linksFiltrados.length}: ${mensaje.substring(0, 60)}...`);
+    } else {
+      mostrarEstado(`Error al enviar (${res.status}): ${await res.text()}`, 'error');
+      clearInterval(intervaloEnvio);
+      intervaloEnvio = null;
+      return;
+    }
+  } catch (err) {
+    mostrarEstado(`Error de red: ${err.message}`, 'error');
+    clearInterval(intervaloEnvio);
+    intervaloEnvio = null;
+  }
+
+  indiceEnvio++;
 }
 
 document.getElementById('fileInput').addEventListener('change', cargarArchivos);
 
-document.getElementById('startSeq').onclick = () => {
+document.getElementById('startSend').onclick = () => {
   if (linksFiltrados.length === 0) return mostrarEstado('Primero carga archivos', 'warning');
-  abrirSiguiente();  // uno por click
+  if (intervaloEnvio) return;
+
+  mostrarEstado('Iniciando envío al webhook (cada 2 segundos)...');
+  intervaloEnvio = setInterval(enviarAlWebhook, 2000);
 };
 
-document.getElementById('startAuto').onclick = () => {
-  if (linksFiltrados.length === 0) return mostrarEstado('Primero carga archivos', 'warning');
-  if (intervaloActual) return;
-
-  mostrarEstado('Modo automático cada 2 segundos (puede bloquearse)');
-  intervaloActual = setInterval(abrirSiguiente, 2000);
-};
-
-document.getElementById('stopBtn').onclick = () => {
-  if (intervaloActual) {
-    clearInterval(intervaloActual);
-    intervaloActual = null;
+document.getElementById('stopSend').onclick = () => {
+  if (intervaloEnvio) {
+    clearInterval(intervaloEnvio);
+    intervaloEnvio = null;
   }
-  mostrarEstado('Parado. Puedes seguir manual o recargar página para limpiar pestañas.');
-  // Nota: no se pueden cerrar automáticamente pestañas abiertas por JS por seguridad
+  mostrarEstado('Envío parado. Puedes continuar o recargar la página.');
 };
 </script>
 </body>
