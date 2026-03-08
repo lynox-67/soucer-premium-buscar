@@ -3,132 +3,167 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>LYNOX HUB - CAZADOR DE ARCHIVOS DISCORD AZUL 🐱‍🚀</title>
+  <title>LYNOX HUB - HACKER GREEN MATRIX 🧑‍💻</title>
   <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Press+Start+2P&family=Vt323&display=swap" rel="stylesheet">
   <style>
     :root {
-      --azul-fuerte: #0d47ff;
-      --azul-electrico: #00d4ff;
-      --azul-oscuro: #001f5c;
-      --cian-loco: #00ffff;
+      --verde-neon: #00ff41;
+      --verde-lima: #39ff14;
+      --verde-oscuro: #003300;
+      --negro-matrix: #000000;
+      --gris-oscuro: #0f0f0f;
     }
 
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
-      background: linear-gradient(135deg, var(--azul-oscuro), #000428);
-      color: var(--cian-loco);
+      background: var(--negro-matrix);
+      color: var(--verde-neon);
       font-family: 'Vt323', monospace;
       min-height: 100vh;
-      padding: 20px 10px;
-      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><text x="10" y="50" font-size="60" fill="%2300d4ff44">🐱</text></svg>'), repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,212,255,0.03) 10px, rgba(0,212,255,0.03) 20px);
-      background-attachment: fixed;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Fondo Matrix - código cayendo */
+    .matrix-bg {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      z-index: -1;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.9), rgba(0,51,0,0.7));
+    }
+
+    .matrix {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      overflow: hidden;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      color: var(--verde-lima);
+      white-space: pre;
+      animation: fall 60s linear infinite;
+    }
+
+    @keyframes fall {
+      0% { transform: translateY(-100%); }
+      100% { transform: translateY(100%); }
     }
 
     h1 {
-      font-family: 'Creepster', cursive;
-      font-size: 3.8rem;
+      font-family: 'Press Start 2P', cursive;
+      font-size: 3.2rem;
       text-align: center;
-      color: var(--azul-electrico);
-      text-shadow: 0 0 20px var(--cian-loco), 0 0 40px var(--azul-fuerte);
+      color: var(--verde-lima);
+      text-shadow: 0 0 20px var(--verde-neon), 0 0 40px var(--verde-lima);
       margin: 20px 0 10px;
-      letter-spacing: 4px;
-      animation: glitch 3s infinite;
+      letter-spacing: 6px;
+      animation: glitch-hacker 4s infinite;
     }
 
-    @keyframes glitch {
-      0% { text-shadow: 2px 2px var(--cian-loco), -2px -2px var(--azul-fuerte); }
-      20% { text-shadow: -2px 2px var(--cian-loco), 2px -2px var(--azul-fuerte); }
-      40% { text-shadow: 2px -2px var(--cian-loco), -2px 2px var(--azul-fuerte); }
-      60% { text-shadow: -2px -2px var(--cian-loco), 2px 2px var(--azul-fuerte); }
-      80% { text-shadow: 2px 2px var(--cian-loco), -2px -2px var(--azul-fuerte); }
-      100% { text-shadow: -2px 2px var(--cian-loco), 2px -2px var(--azul-fuerte); }
+    @keyframes glitch-hacker {
+      0% { text-shadow: 2px 2px var(--verde-neon), -2px -2px #00aa00; }
+      20% { text-shadow: -2px 2px var(--verde-neon), 2px -2px #00aa00; }
+      40% { text-shadow: 2px -2px var(--verde-neon), -2px 2px #00aa00; }
+      60% { text-shadow: -2px -2px var(--verde-neon), 2px 2px #00aa00; }
+      80% { text-shadow: 2px 2px var(--verde-neon), -2px -2px #00aa00; }
+      100% { text-shadow: -2px 2px var(--verde-neon), 2px -2px #00aa00; }
     }
 
-    .by { text-align: center; font-size: 1.6rem; color: #00ffffaa; margin-bottom: 15px; text-shadow: 0 0 10px #00ffff; font-family: 'Press Start 2P', cursive; }
+    .by { text-align: center; font-size: 1.5rem; color: #00ff4188; margin-bottom: 15px; text-shadow: 0 0 10px var(--verde-neon); font-family: 'Press Start 2P', cursive; }
 
     .discord { text-align: center; font-size: 1.4rem; margin: 10px 0 30px; }
-    .discord a { color: #00ffff; text-decoration: none; font-weight: bold; border-bottom: 3px dashed #00ffff; padding-bottom: 4px; transition: all 0.3s; }
-    .discord a:hover { color: #ff00ff; border-color: #ff00ff; text-shadow: 0 0 15px #ff00ff; }
+    .discord a { color: var(--verde-lima); text-decoration: none; font-weight: bold; border-bottom: 3px dashed var(--verde-neon); padding-bottom: 4px; transition: all 0.3s; }
+    .discord a:hover { color: #00ffaa; border-color: #00ffaa; text-shadow: 0 0 15px #00ffaa; }
 
     .container {
-      background: rgba(10, 10, 40, 0.85);
-      backdrop-filter: blur(8px);
-      border: 4px solid var(--azul-electrico);
-      border-radius: 18px;
+      background: rgba(0, 20, 0, 0.85);
+      backdrop-filter: blur(6px);
+      border: 4px solid var(--verde-neon);
+      border-radius: 16px;
       padding: 30px 20px;
       max-width: 900px;
       margin: 0 auto 40px;
-      box-shadow: 0 0 40px rgba(0, 212, 255, 0.5);
+      box-shadow: 0 0 40px rgba(0,255,65,0.4), inset 0 0 20px rgba(0,255,65,0.15);
     }
 
     input[type="file"], textarea {
-      background: #001133;
-      color: #00ffff;
-      border: 2px solid #00d4ff;
+      background: #001100;
+      color: var(--verde-lima);
+      border: 2px solid var(--verde-neon);
       border-radius: 8px;
       padding: 12px;
       font-family: 'Vt323', monospace;
-      font-size: 1.2rem;
+      font-size: 1.3rem;
       width: 100%;
       margin: 12px 0;
     }
 
     button {
-      background: linear-gradient(45deg, #00d4ff, #0d47ff);
-      color: white;
+      background: linear-gradient(45deg, var(--verde-lima), #00aa00);
+      color: black;
       border: none;
       padding: 14px 28px;
       margin: 10px;
       border-radius: 12px;
       font-size: 1.3rem;
       cursor: pointer;
-      box-shadow: 0 0 20px rgba(0,212,255,0.6);
+      box-shadow: 0 0 20px rgba(0,255,65,0.7);
       transition: all 0.2s;
       font-family: 'Press Start 2P', cursive;
     }
 
     button:hover {
       transform: scale(1.08);
-      box-shadow: 0 0 35px rgba(0,212,255,0.9);
+      box-shadow: 0 0 35px rgba(0,255,65,1);
     }
 
-    #startSend { background: linear-gradient(45deg, #00ff9d, #00d4ff); }
-    #stopSend  { background: linear-gradient(45deg, #ff0066, #ff3366); }
+    #startSend { background: linear-gradient(45deg, #00ff41, #39ff14); color: #000; }
+    #stopSend  { background: linear-gradient(45deg, #ff0044, #cc0033); color: white; }
 
     #status {
-      background: rgba(0,0,0,0.6);
+      background: rgba(0,0,0,0.7);
       padding: 15px;
       border-radius: 10px;
       margin: 20px 0;
       font-size: 1.3rem;
-      border-left: 8px solid var(--cian-loco);
+      border-left: 8px solid var(--verde-lima);
       white-space: pre-line;
     }
 
     #preview {
-      background: #000d22;
-      border: 3px dashed #00ffff;
+      background: #000800;
+      border: 3px dashed var(--verde-neon);
       border-radius: 12px;
       padding: 20px;
       font-size: 1.2rem;
       max-height: 400px;
       overflow-y: auto;
       margin-top: 25px;
-      color: #aaffff;
+      color: var(--verde-lima);
     }
 
-    .footer { text-align: center; font-size: 1.4rem; color: #00ffff88; margin-top: 50px; text-shadow: 0 0 10px #00ffff; }
+    .footer { text-align: center; font-size: 1.4rem; color: #00ff4188; margin-top: 50px; text-shadow: 0 0 10px var(--verde-neon); }
   </style>
 </head>
 <body>
 
+<div class="matrix-bg">
+  <div class="matrix">
+    01010101 10101010 01100111 10010110 00111001 11001010 01010111 10100100<br>
+    10011001 01101010 10100101 01011010 00101101 11010011 01100100 10010111<br>
+    01010100 10101011 01100101 10011000 00111100 11001101 01010110 10100111<br>
+    ... (el código se genera dinámicamente abajo) ...
+  </div>
+</div>
+
 <div class="container">
-  <h1>LYNOX HUB - SOLO ARCHIVOS DISCORD 🐱‍💻</h1>
-  <div class="by">HECHO POR LYNX LOCO CON GARRAS AZULES</div>
-  <div class="discord">Únete al caos → <a href="https://discord.gg/spWx8vKT" target="_blank">discord.gg/spWx8vKT</a> 🐾</div>
+  <h1>LYNOX HUB - HACKER MATRIX GREEN 🧑‍💻</h1>
+  <div class="by">HECHO POR LYNX EL HACKER LOCO</div>
+  <div class="discord">Únete al hack → <a href="https://discord.gg/spWx8vKT" target="_blank">discord.gg/spWx8vKT</a> 💾</div>
 
   <p style="font-size:1.3rem; text-align:center; margin:20px 0;">
-    Solo cazo https://cdn.discordapp.com/attachments/... → uno por segundo (seguro, ~30 min para 1800) 🔥
+    Solo cazo https://cdn.discordapp.com/attachments/... → uno por segundo (30 min max seguro) 🔥
   </p>
 
   <input type="file" id="fileInput" accept=".txt" multiple>
@@ -137,19 +172,50 @@
   <textarea id="webhook" placeholder="https://discord.com/api/webhooks/12345/abcdef..."></textarea>
 
   <div style="text-align:center; margin:30px 0;">
-    <button id="startSend">LANZAR ATAQUE DISCORD 🐱‍🚀</button>
-    <button id="stopSend">PARAR TODO 🛑</button>
+    <button id="startSend">INICIAR HACK 🧑‍💻</button>
+    <button id="stopSend">ABORTAR 🛑</button>
   </div>
 
-  <div id="status">Listo para cazar attachments... suelta los txts 🔥</div>
+  <div id="status">Esperando archivos para infiltración... suelta los txts 💀</div>
   <div id="preview"></div>
 </div>
 
 <div class="footer">
-  LYN0X HUB - REY DEL AZUL SALVAJE 2026 🐾💙
+  LYN0X HUB - GREEN MATRIX HACK 2026 🧑‍💻💚
 </div>
 
 <script>
+// Fondo Matrix dinámico (código cayendo)
+const matrix = document.querySelector('.matrix');
+const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
+let matrixLines = [];
+
+function createMatrixLine() {
+  const line = document.createElement('div');
+  line.style.position = 'absolute';
+  line.style.left = Math.random() * 100 + 'vw';
+  line.style.top = '-100px';
+  line.style.whiteSpace = 'pre';
+  line.style.opacity = Math.random() * 0.5 + 0.5;
+  line.textContent = Array(80).fill().map(() => chars[Math.floor(Math.random() * chars.length)]).join('');
+  matrix.appendChild(line);
+  matrixLines.push(line);
+}
+
+setInterval(() => {
+  if (matrixLines.length < 50) createMatrixLine();
+  matrixLines.forEach((line, i) => {
+    let top = parseFloat(line.style.top) || -100;
+    top += 1.5 + Math.random() * 0.5;
+    line.style.top = top + 'px';
+    if (top > window.innerHeight) {
+      line.remove();
+      matrixLines.splice(i, 1);
+    }
+  });
+}, 80);
+
+// Script funcional (solo cdn.discordapp.com/attachments)
 let linksFiltrados = [];
 let intervaloEnvio = null;
 let indiceEnvio = 0;
@@ -175,7 +241,7 @@ function esCdnAttachment(url) {
 function descargarTXT() {
   if (linksFiltrados.length === 0) return;
 
-  let contenido = `Archivos de Discord encontrados (cdn.discordapp.com/attachments): ${linksFiltrados.length}\n\n`;
+  let contenido = `Archivos de Discord (cdn.discordapp.com/attachments): ${linksFiltrados.length}\n\n`;
   linksFiltrados.forEach((url, i) => {
     contenido += `${i + 1}. ${url}\n`;
   });
@@ -282,7 +348,7 @@ document.getElementById('startSend').onclick = () => {
   if (linksFiltrados.length === 0) return mostrarEstado('Primero carga archivos', 'warning');
   if (intervaloEnvio) return;
 
-  mostrarEstado('Enviando 1 archivo por segundo (muy seguro, ~30 min para 1800)...');
+  mostrarEstado('Iniciando hack... 1 archivo por segundo (muy seguro, ~30 min para 1800)...');
   intervaloEnvio = setInterval(enviarAlWebhook, 1000);
 };
 
@@ -291,7 +357,7 @@ document.getElementById('stopSend').onclick = () => {
     clearInterval(intervaloEnvio);
     intervaloEnvio = null;
   }
-  mostrarEstado('Envío detenido');
+  mostrarEstado('Hack detenido');
 };
 </script>
 </body>
