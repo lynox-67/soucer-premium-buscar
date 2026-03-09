@@ -1,84 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Envío Masivo a Webhooks - Controlado</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            margin: 0;
+            padding: 30px;
+            color: #333;
+        }
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 25px;
+        }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #34495e;
+        }
+        input[type="text"], select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 15px;
+        }
+        input[type="file"] {
+            margin-top: 8px;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 0.95em;
+            display: none;
+        }
+        .buttons {
+            display: flex;
+            gap: 12px;
+            margin: 30px 0 20px;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        #startBtn {
+            background: #27ae60;
+            color: white;
+        }
+        #startBtn:hover { background: #219653; }
+        #stopBtn {
+            background: #e74c3c;
+            color: white;
+        }
+        #stopBtn:hover { background: #c0392b; }
+        #status {
+            margin: 20px 0;
+            padding: 12px;
+            border-radius: 6px;
+            background: #ecf0f1;
+            min-height: 60px;
+            white-space: pre-wrap;
+        }
+        .error { background: #fadad7; color: #c0392b; }
+        .success { background: #d4edda; color: #155724; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Envío Masivo a Webhooks</h1>
+    <p class="subtitle">Sube archivos de una carpeta y envíalos divididos entre varios webhooks</p>
+
+    <div class="section">
+        <label for="folder">Selecciona la carpeta con los archivos:</label>
+        <input type="file" id="folder" webkitdirectory directory multiple>
+    </div>
+
+    <div class="section">
+        <label>Cantidad de webhooks a usar:</label>
+        <select id="webhookCount">
+            <option value="1">1 webhook</option>
+            <option value="2" selected>2 webhooks</option>
+            <option value="3">3 webhooks</option>
+            <option value="4">4 webhooks</option>
+            <option value="5">5 webhooks</option>
+        </select>
+    </div>
+
+    <div class="section">
+        <label>Pega las URLs de los webhooks (solo los que vas a usar):</label>
+        <input type="text" id="webhook1" placeholder="Webhook 1 (obligatorio)">
+        <input type="text" id="webhook2" placeholder="Webhook 2">
+        <input type="text" id="webhook3" placeholder="Webhook 3">
+        <input type="text" id="webhook4" placeholder="Webhook 4">
+        <input type="text" id="webhook5" placeholder="Webhook 5">
+    </div>
+
+    <div class="section">
+        <label>Velocidad de envío:</label>
+        <select id="speed">
+            <option value="slow">Lento (seguro – ~1 archivo cada 3–5 seg)</option>
+            <option value="medium" selected>Medio (recomendado – ~1 cada 1.5–2 seg)</option>
+            <option value="fast">Rápido (riesgoso – ~1 cada 0.6–1 seg)</option>
+        </select>
+        <div id="speedWarning" class="warning">
+            ⚠️ Velocidad RÁPIDA puede causar bloqueos temporales, rate-limits o bans en algunos servicios (Discord, Telegram bots, etc.). Usa solo si sabes que el servidor lo soporta.
+        </div>
+    </div>
+
+    <div class="buttons">
+        <button id="startBtn">Iniciar Envío</button>
+        <button id="stopBtn" disabled>Parar Envío</button>
+    </div>
+
+    <div id="status">Listo para comenzar...</div>
+</div>
+
 <script>
-    const uploadBtn = document.getElementById('uploadBtn');
+    const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
-    const folderInput = document.getElementById('folder');
-    const webhooksInput = document.getElementById('webhooks');
-    const statusDiv = document.getElementById('status');
-    const errorDiv = document.getElementById('error');
+    const status = document.getElementById('status');
+    const speedSelect = document.getElementById('speed');
+    const warning = document.getElementById('speedWarning');
 
     let abortController = null;
 
-    uploadBtn.addEventListener('click', async () => {
-        const files = Array.from(folderInput.files);
-        let webhookUrls = webhooksInput.value.split(',').map(url => url.trim()).filter(url => url);
+    // Mostrar advertencia según velocidad
+    speedSelect.addEventListener('change', () => {
+        warning.style.display = speedSelect.value === 'fast' ? 'block' : 'none';
+    });
 
-        if (files.length === 0) return errorDiv.textContent = 'Selecciona carpeta con archivos.';
-        if (webhookUrls.length === 0) return errorDiv.textContent = 'Ingresa al menos un webhook.';
+    startBtn.addEventListener('click', async () => {
+        const folderInput = document.getElementById('folder');
+        const files = Array.from(folderInput.files || []);
 
-        errorDiv.textContent = '';
-        statusDiv.textContent = 'Iniciando...';
-        uploadBtn.disabled = true;
+        if (files.length === 0) {
+            status.textContent = 'Error: Selecciona una carpeta con archivos.';
+            status.className = 'error';
+            return;
+        }
+
+        const count = parseInt(document.getElementById('webhookCount').value);
+        const webhooks = [];
+        for (let i = 1; i <= 5; i++) {
+            const url = document.getElementById(`webhook${i}`).value.trim();
+            if (url) webhooks.push(url);
+        }
+
+        if (webhooks.length === 0 || webhooks.length < count) {
+            status.textContent = `Error: Debes llenar al menos ${count} webhook${count > 1 ? 's' : ''} válidos.`;
+            status.className = 'error';
+            return;
+        }
+
+        // Usamos solo los primeros N según la selección
+        const activeWebhooks = webhooks.slice(0, count);
+
+        status.textContent = `Preparando envío de ${files.length} archivos a ${activeWebhooks.length} webhooks...\n`;
+        status.className = '';
+        startBtn.disabled = true;
         stopBtn.disabled = false;
         abortController = new AbortController();
 
         try {
-            const chunks = Array(webhookUrls.length).fill().map(() => []);
-            files.forEach((file, i) => chunks[i % webhookUrls.length].push(file));
+            // Dividir archivos (sin duplicados)
+            const chunks = Array(activeWebhooks.length).fill().map(() => []);
+            files.forEach((file, i) => {
+                chunks[i % activeWebhooks.length].push(file);
+            });
+
+            const delays = { slow: 4000, medium: 1800, fast: 700 };
+            const baseDelay = delays[speedSelect.value];
 
             await Promise.all(
-                chunks.map((chunk, i) => sendToWebhook(webhookUrls[i], chunk, abortController.signal))
+                chunks.map((chunk, i) =>
+                    sendChunk(activeWebhooks[i], chunk, abortController.signal, baseDelay)
+                )
             );
-            statusDiv.textContent = '¡Envío completado!';
+
+            status.textContent += '\n¡Envío completado exitosamente!';
+            status.className = 'success';
         } catch (err) {
             if (err.name === 'AbortError') {
-                statusDiv.textContent = 'Detenido por el usuario.';
+                status.textContent += '\nEnvío detenido por el usuario.';
             } else {
-                errorDiv.textContent = `Error: ${err.message}`;
+                status.textContent += `\nError: ${err.message}`;
+                status.className = 'error';
             }
         } finally {
-            uploadBtn.disabled = false;
+            startBtn.disabled = false;
             stopBtn.disabled = true;
             abortController = null;
         }
     });
 
     stopBtn.addEventListener('click', () => {
-        abortController?.abort();
-        uploadBtn.disabled = false;
-        stopBtn.disabled = true;
+        if (abortController) abortController.abort();
+        status.textContent += '\nDeteniendo...';
     });
 
-    async function sendToWebhook(url, files, signal) {
-        for (const file of files) {
+    async function sendChunk(url, files, signal, baseDelay) {
+        for (let file of files) {
             if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
 
             const formData = new FormData();
-            formData.append('file', file);  // Cambia 'file' si tu webhook espera otro nombre (ej: 'archivo', 'attachment')
+            formData.append('file', file);
 
             let attempts = 0;
             while (attempts < 3) {
                 try {
-                    const response = await fetch(url, {
+                    const res = await fetch(url, {
                         method: 'POST',
                         body: formData,
                         signal
                     });
 
-                    if (!response.ok) {
-                        const errorText = await response.text().catch(() => 'Sin detalles');
-                        throw new Error(`status: ${response.status} - ${errorText}`);
+                    if (!res.ok) {
+                        const txt = await res.text().catch(() => '');
+                        throw new Error(`HTTP ${res.status} - ${txt || 'sin detalles'}`);
                     }
 
-                    statusDiv.textContent = `OK → ${file.name} a ${url}`;
+                    status.textContent += `✓ ${file.name} → ${url.split('/').slice(-2).join('/')}\n`;
                     break;
-                } catch (err) {
+                } catch (e) {
                     attempts++;
-                    if (attempts >= 3 || signal.aborted) throw err;
-                    statusDiv.textContent = `Reintento ${attempts}/3 en ${file.name}...`;
-                    await new Promise(r => setTimeout(r, 2000 * attempts));
+                    if (attempts >= 3 || signal.aborted) throw e;
+                    status.textContent += `Reintento ${attempts}/3: ${file.name}...\n`;
+                    await sleep(1000 * attempts);
                 }
             }
-            await new Promise(r => setTimeout(r, 1200)); // rate limit suave
+
+            await sleep(baseDelay + Math.random() * 400); // variación pequeña para no ser tan predecible
         }
     }
+
+    function sleep(ms) {
+        return new Promise(r => setTimeout(r, ms));
+    }
 </script>
+</body>
+</html>
