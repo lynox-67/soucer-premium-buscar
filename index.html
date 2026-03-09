@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>LYNOX HUB - MATRIX GREEN FILE SENDER 🧑‍💻</title>
+  <title>LYNOX HUB - MATRIX GREEN TXT SENDER 🧑‍💻</title>
   <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Press+Start+2P&family=Vt323&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -130,11 +130,11 @@
 <div id="matrix-overlay"></div>
 
 <div class="container">
-  <h1>LYNOX HUB - MATRIX GREEN FILE SENDER 🧑‍💻</h1>
+  <h1>LYNOX HUB - TXT SENDER MATRIX 🧑‍💻</h1>
   <div class="by">HECHO POR LYNX EL HACKER LOCO</div>
 
   <p style="text-align:center; font-size:1.3rem; margin:20px 0;">
-    Sube muchos archivos → envía SOLO los que NO sean imagen/video/html → divide entre webhooks (1 por segundo)
+    Sube muchos archivos → envía SOLO .txt (sin html, imágenes ni videos) a varios webhooks (divididos, 1 por segundo)
   </p>
 
   <input type="file" id="fileInput" multiple>
@@ -175,7 +175,7 @@ function createMatrixChar() {
 
 setInterval(createMatrixChar, 30);
 
-// Lógica principal
+// Lógica de envío
 let archivosFiltrados = [];
 let intervalos = [];
 let paused = false;
@@ -188,36 +188,36 @@ function mostrarEstado(texto, tipo = '') {
   status.className = tipo;
 }
 
-function esExcluido(nombre) {
+function esTxtValido(nombre) {
   const ext = nombre.toLowerCase();
-  return ext.endsWith('.html') ||
-         ext.endsWith('.htm') ||
-         ext.endsWith('.xhtml') ||
-         ext.endsWith('.jpg') ||
-         ext.endsWith('.jpeg') ||
-         ext.endsWith('.png') ||
-         ext.endsWith('.gif') ||
-         ext.endsWith('.webp') ||
-         ext.endsWith('.bmp') ||
-         ext.endsWith('.mp4') ||
-         ext.endsWith('.webm') ||
-         ext.endsWith('.mov') ||
-         ext.endsWith('.avi') ||
-         ext.endsWith('.mkv');
+  return ext.endsWith('.txt') && 
+         !ext.includes('.html') && 
+         !ext.includes('.htm') &&
+         !ext.endsWith('.jpg') &&
+         !ext.endsWith('.jpeg') &&
+         !ext.endsWith('.png') &&
+         !ext.endsWith('.gif') &&
+         !ext.endsWith('.webp') &&
+         !ext.endsWith('.bmp') &&
+         !ext.endsWith('.mp4') &&
+         !ext.endsWith('.webm') &&
+         !ext.endsWith('.mov') &&
+         !ext.endsWith('.avi') &&
+         !ext.endsWith('.mkv');
 }
 
 function procesarArchivos() {
   const input = document.getElementById('fileInput');
   if (!input.files?.length) return mostrarEstado('Suelta archivos primero', 'error');
 
-  archivosFiltrados = Array.from(input.files).filter(file => !esExcluido(file.name));
+  archivosFiltrados = Array.from(input.files).filter(file => esTxtValido(file.name));
 
   if (archivosFiltrados.length === 0) {
-    mostrarEstado('No hay archivos válidos (excluidos html, imágenes y videos)', 'warning');
+    mostrarEstado('No hay archivos .txt válidos (excluidos html/imágenes/videos)', 'warning');
     return;
   }
 
-  mostrarEstado(`Listo: ${archivosFiltrados.length} archivos válidos cargados`, 'success');
+  mostrarEstado(`Listo: ${archivosFiltrados.length} archivos .txt válidos cargados`, 'success');
 }
 
 async function enviarParte(webhook, parteArchivos, parteIndex) {
@@ -228,7 +228,7 @@ async function enviarParte(webhook, parteArchivos, parteIndex) {
     if (localIndex >= parteArchivos.length) {
       clearInterval(intervalo);
       intervalos[parteIndex] = null;
-      mostrarEstado(`Webhook ${parteIndex + 1} terminado (${parteArchivos.length} archivos)`, 'success');
+      mostrarEstado(`Webhook ${parteIndex + 1} terminado (${parteArchivos.length} .txt)`, 'success');
       return;
     }
 
@@ -239,7 +239,7 @@ async function enviarParte(webhook, parteArchivos, parteIndex) {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('payload_json', JSON.stringify({
-        content: `**Archivo ${numeroGlobal}/${archivosFiltrados.length}** - ${file.name}\nHecho por Lynox Hub`
+        content: `**Archivo TXT ${numeroGlobal}/${archivosFiltrados.length}** - ${file.name}\nHecho por Lynox Hub`
       }));
 
       const res = await fetch(webhook, {
@@ -273,7 +273,7 @@ async function enviarParte(webhook, parteArchivos, parteIndex) {
 document.getElementById('fileInput').addEventListener('change', procesarArchivos);
 
 document.getElementById('startSend').onclick = () => {
-  if (archivosFiltrados.length === 0) return mostrarEstado('Primero sube archivos', 'warning');
+  if (archivosFiltrados.length === 0) return mostrarEstado('Primero sube archivos .txt', 'warning');
 
   const webhooksText = webhooksInput.value.trim();
   if (!webhooksText) return mostrarEstado('Pega al menos un webhook (uno por línea)', 'error');
@@ -286,7 +286,7 @@ document.getElementById('startSend').onclick = () => {
   const porWebhook = Math.ceil(archivosFiltrados.length / numWebhooks);
   intervalos = new Array(numWebhooks).fill(null);
 
-  mostrarEstado(`Iniciando envío dividido en ${numWebhooks} webhooks... 1 archivo por segundo cada uno`);
+  mostrarEstado(`Iniciando envío dividido en ${numWebhooks} webhooks... 1 .txt por segundo cada uno`);
 
   paused = false;
 
