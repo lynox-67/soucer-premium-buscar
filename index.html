@@ -1,136 +1,312 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Enviar Scripts y TXT por Webhooks (sin imágenes/videos)</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LYNOX HUB - MATRIX GREEN FILE SENDER 🧑‍💻</title>
+  <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Press+Start+2P&family=Vt323&display=swap" rel="stylesheet">
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; background: #1e1e1e; color: #e0e0e0; }
-    input, button { margin: 10px 0; padding: 8px; }
-    button { background: #5865f2; color: white; border: none; cursor: pointer; }
-    button:disabled { background: #3f3f3f; }
-    #status { color: #43b581; font-weight: bold; }
-    #error { color: #f04747; }
-    h2 { color: #fff; }
+    :root {
+      --verde-neon: #00ff41;
+      --verde-lima: #39ff14;
+      --verde-oscuro: #003300;
+      --negro-matrix: #000000;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body, html {
+      height: 100%;
+      overflow: hidden;
+      background: var(--negro-matrix);
+      color: var(--verde-neon);
+      font-family: 'Vt323', monospace;
+    }
+
+    #bg-video {
+      position: fixed;
+      right: 0;
+      bottom: 0;
+      min-width: 100%;
+      min-height: 100%;
+      z-index: -2;
+      object-fit: cover;
+    }
+
+    #matrix-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      z-index: -1;
+      background: rgba(0,0,0,0.45);
+    }
+
+    .matrix-char {
+      position: absolute;
+      color: var(--verde-lima);
+      font-size: 18px;
+      white-space: pre;
+      text-shadow: 0 0 10px var(--verde-neon);
+      animation: fall linear forwards;
+    }
+
+    @keyframes fall {
+      to { transform: translateY(120vh); }
+    }
+
+    .container {
+      position: relative;
+      z-index: 10;
+      background: rgba(0, 20, 0, 0.75);
+      backdrop-filter: blur(8px);
+      border: 3px solid var(--verde-neon);
+      border-radius: 16px;
+      margin: 20px auto;
+      padding: 30px;
+      max-width: 900px;
+      box-shadow: 0 0 40px rgba(0,255,65,0.4);
+    }
+
+    h1 {
+      font-family: 'Press Start 2P', cursive;
+      font-size: 3rem;
+      text-align: center;
+      color: var(--verde-lima);
+      text-shadow: 0 0 20px var(--verde-neon);
+      margin-bottom: 10px;
+    }
+
+    input[type="file"], textarea {
+      background: #001100;
+      color: var(--verde-lima);
+      border: 2px solid var(--verde-neon);
+      border-radius: 8px;
+      padding: 12px;
+      width: 100%;
+      margin: 12px 0;
+      font-size: 1.2rem;
+    }
+
+    button {
+      background: linear-gradient(45deg, var(--verde-lima), #00aa00);
+      color: black;
+      border: none;
+      padding: 14px 30px;
+      margin: 10px;
+      border-radius: 10px;
+      font-size: 1.3rem;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(0,255,65,0.6);
+    }
+
+    button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 30px rgba(0,255,65,0.9);
+    }
+
+    #status {
+      background: rgba(0,0,0,0.7);
+      padding: 15px;
+      border-radius: 10px;
+      margin: 20px 0;
+      font-size: 1.3rem;
+      border-left: 8px solid var(--verde-lima);
+      white-space: pre-line;
+    }
+
+    #preview {
+      background: #000800;
+      border: 2px dashed var(--verde-neon);
+      border-radius: 10px;
+      padding: 15px;
+      max-height: 350px;
+      overflow-y: auto;
+      margin-top: 20px;
+      color: var(--verde-lima);
+    }
+
+    .footer {
+      text-align: center;
+      color: #00ff4188;
+      margin-top: 30px;
+      font-size: 1.2rem;
+    }
   </style>
 </head>
 <body>
-  <h2>Enviar Archivos de Carpeta a Webhooks (solo TXT, LUA, etc. – sin imágenes ni videos)</h2>
-  
-  <p>1. Pega las URLs de los webhooks (separadas por coma):</p>
-  <input type="text" id="webhooks" size="90" placeholder="https://discord.com/api/webhooks/ID1/TOKEN1, https://discord.com/api/webhooks/ID2/TOKEN2"><br>
-  
-  <p>2. Selecciona la carpeta completa:</p>
-  <input type="file" id="folder" webkitdirectory directory multiple><br>
-  
-  <p>3. Delay entre envíos (ms) – recomendado 800–2000 para evitar bans/ratelimits:</p>
-  <input type="number" id="delay" value="1200" min="0" step="100"><br>
-  
-  <button id="startBtn" onclick="iniciarEnvio()">Comenzar Envío</button>
-  <button id="stopBtn" onclick="detenerEnvio()" disabled>Detener Envío</button>
-  
-  <p id="status">Listo para empezar...</p>
-  <p id="error"></p>
 
-  <script>
-    let enviando = false;
-    let archivosPendientes = [];
-    let enviados = new Set(); // Evitar duplicados por nombre de archivo
-    let indexActual = 0;
-    let webhooks = [];
-    let delayMs = 1200;
+<video autoplay muted loop playsinline id="bg-video">
+  <source src="https://www.youtube.com/embed/R8lHaEZYpCU?autoplay=1&mute=1&loop=1&playlist=R8lHaEZYpCU&controls=0&showinfo=0&rel=0&modestbranding=1" type="video/mp4">
+</video>
 
-    // Extensiones permitidas (solo texto/scripts – agrega/quita según necesites)
-    const extensionesPermitidas = new Set([
-      '.txt', '.lua', '.json', '.js', '.css', '.html', '.log', '.cfg', '.ini', '.xml'
-    ]);
+<div id="matrix-overlay"></div>
 
-    async function iniciarEnvio() {
-      const webhooksInput = document.getElementById('webhooks').value.trim();
-      delayMs = parseInt(document.getElementById('delay').value) || 1200;
-      const folderInput = document.getElementById('folder');
+<div class="container">
+  <h1>LYNOX HUB - MATRIX GREEN FILE SENDER 🧑‍💻</h1>
+  <div class="by">HECHO POR LYNX EL HACKER LOCO</div>
 
-      if (!webhooksInput) return mostrarError('Ingresa al menos un webhook.');
-      webhooks = webhooksInput.split(',').map(u => u.trim()).filter(u => u.startsWith('https://discord.com/api/webhooks/'));
+  <p style="text-align:center; font-size:1.3rem; margin:20px 0;">
+    Extrae https://cdn.discordapp.com/attachments/... → envía el ARCHIVO REAL al webhook (1 por segundo)
+  </p>
 
-      if (webhooks.length === 0) return mostrarError('Ningún webhook válido.');
-      if (folderInput.files.length === 0) return mostrarError('Selecciona una carpeta.');
+  <input type="file" id="fileInput" accept=".txt" multiple>
 
-      // Filtrar solo archivos permitidos y no duplicados
-      archivosPendientes = Array.from(folderInput.files).filter(file => {
-        const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
-        return extensionesPermitidas.has(ext) && !enviados.has(file.name);
+  <label for="webhook">Webhook Discord (solo uno):</label>
+  <textarea id="webhook" placeholder="https://discord.com/api/webhooks/..."></textarea>
+
+  <div style="text-align:center; margin:30px 0;">
+    <button id="startSend">INICIAR ENVÍO DE ARCHIVOS 🧑‍💻</button>
+    <button id="stopSend">ABORTAR 🛑</button>
+  </div>
+
+  <div id="status">Esperando txts con links... suéltalos aquí 💀</div>
+  <div id="preview"></div>
+</div>
+
+<div class="footer">
+  LYN0X HUB - GREEN MATRIX 2026 🧑‍💻💚
+</div>
+
+<script>
+// Matrix rain
+const matrixOverlay = document.getElementById('matrix-overlay');
+const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*';
+
+function createMatrixChar() {
+  const char = document.createElement('div');
+  char.className = 'matrix-char';
+  char.textContent = chars[Math.floor(Math.random() * chars.length)];
+  char.style.left = Math.random() * 100 + 'vw';
+  char.style.top = '-30px';
+  char.style.animationDuration = (Math.random() * 5 + 3) + 's';
+  char.style.opacity = Math.random() * 0.7 + 0.3;
+  char.style.fontSize = Math.random() * 18 + 14 + 'px';
+  matrixOverlay.appendChild(char);
+  setTimeout(() => char.remove(), 12000);
+}
+
+setInterval(createMatrixChar, 30);
+
+// Lógica principal
+let linksFiltrados = [];
+let intervaloEnvio = null;
+let indiceEnvio = 0;
+
+const status = document.getElementById('status');
+const preview = document.getElementById('preview');
+const webhookInput = document.getElementById('webhook');
+
+function mostrarEstado(texto, tipo = '') {
+  status.textContent = texto;
+  status.className = tipo;
+}
+
+function esCdnAttachment(url) {
+  return url.toLowerCase().startsWith('https://cdn.discordapp.com/attachments/');
+}
+
+async function procesarArchivos() {
+  const input = document.getElementById('fileInput');
+  if (!input.files?.length) return mostrarEstado('Suelta al menos un .txt', 'error');
+
+  mostrarEstado(`Leyendo ${input.files.length} archivo(s)...`);
+
+  const setUrls = new Set();
+
+  for (const file of input.files) {
+    try {
+      const txt = await file.text();
+      const urls = txt.match(/https?:\/\/[^\s<>"'()]+/gi) || [];
+      urls.forEach(u => {
+        if (esCdnAttachment(u)) setUrls.add(u.trim());
       });
+    } catch {}
+  }
 
-      if (archivosPendientes.length === 0) return mostrarError('No hay archivos válidos nuevos (solo txt/lua/etc).');
+  linksFiltrados = Array.from(setUrls);
 
-      enviando = true;
-      document.getElementById('startBtn').disabled = true;
-      document.getElementById('stopBtn').disabled = false;
-      mostrarStatus(`Preparando ${archivosPendientes.length} archivos...`);
+  if (linksFiltrados.length === 0) {
+    mostrarEstado('No encontré enlaces válidos de cdn.discordapp.com/attachments', 'warning');
+    preview.textContent = '';
+    return;
+  }
 
-      indexActual = 0;
-      await procesarEnvio();
+  preview.textContent = linksFiltrados.map((url, i) => `${i+1}. ${url}`).join('\n');
+  mostrarEstado(`Listo: ${linksFiltrados.length} archivos encontrados`, 'success');
+}
+
+async function enviarAlWebhook() {
+  const webhook = webhookInput.value.trim();
+  if (!webhook || !webhook.startsWith('https://discord.com/api/webhooks/')) {
+    mostrarEstado('Webhook inválido o vacío', 'error');
+    clearInterval(intervaloEnvio);
+    return;
+  }
+
+  if (indiceEnvio >= linksFiltrados.length) {
+    mostrarEstado(`¡Terminado! (${linksFiltrados.length} archivos enviados)`, 'success');
+    clearInterval(intervaloEnvio);
+    intervaloEnvio = null;
+    return;
+  }
+
+  const url = linksFiltrados[indiceEnvio];
+  const numero = indiceEnvio + 1;
+
+  try {
+    // Proxy CORS para saltar bloqueo del navegador
+    const proxy = 'https://cors-anywhere.herokuapp.com/';
+    const response = await fetch(proxy + url);
+    if (!response.ok) throw new Error(`Fallo descarga: ${response.status}`);
+
+    const blob = await response.blob();
+    const fileName = url.split('/').pop() || `archivo_${numero}`;
+
+    const formData = new FormData();
+    formData.append('file', blob, fileName);
+    formData.append('payload_json', JSON.stringify({
+      content: `**Archivo ${numero}/${linksFiltrados.length}** - ${fileName}\nHecho por Lynox Hub`
+    }));
+
+    const res = await fetch(webhook, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (res.ok) {
+      mostrarEstado(`Enviado ${numero}/${linksFiltrados.length} (${fileName})`);
+    } else if (res.status === 429) {
+      mostrarEstado('Rate limit (429) → parando', 'warning');
+      clearInterval(intervaloEnvio);
+      intervaloEnvio = null;
+    } else {
+      mostrarEstado(`Error ${res.status}`, 'error');
+      clearInterval(intervaloEnvio);
     }
+  } catch (err) {
+    mostrarEstado(`Fallo al enviar ${numero}: ${err.message}`, 'error');
+    clearInterval(intervaloEnvio);
+  }
 
-    async function procesarEnvio() {
-      while (enviando && indexActual < archivosPendientes.length) {
-        const file = archivosPendientes[indexActual];
-        const webhookIdx = indexActual % webhooks.length;
-        const webhook = webhooks[webhookIdx];
+  indiceEnvio++;
+}
 
-        mostrarStatus(`[${indexActual+1}/${archivosPendientes.length}] Enviando ${file.name} → webhook ${webhookIdx+1}`);
+document.getElementById('fileInput').addEventListener('change', procesarArchivos);
 
-        const formData = new FormData();
-        formData.append('payload_json', JSON.stringify({
-          content: `**Archivo:** ${file.name}\n**Tamaño:** ${Math.round(file.size / 1024)} KB`
-        }));
-        formData.append('files[]', file);
+document.getElementById('startSend').onclick = () => {
+  if (linksFiltrados.length === 0) return mostrarEstado('Carga archivos primero', 'warning');
+  if (intervaloEnvio) return;
 
-        try {
-          const res = await fetch(webhook, { method: 'POST', body: formData });
-          if (res.ok) {
-            enviados.add(file.name);
-            mostrarStatus(`Éxito: ${file.name} enviado`);
-          } else {
-            mostrarError(`Fallo ${res.status} en ${file.name}`);
-          }
-        } catch (err) {
-          mostrarError(`Error en ${file.name}: ${err.message}`);
-        }
+  mostrarEstado('Iniciando envío de archivos reales... 1 por segundo (seguro)');
+  intervaloEnvio = setInterval(enviarAlWebhook, 1000);
+};
 
-        indexActual++;
-        if (enviando && indexActual < archivosPendientes.length) {
-          await new Promise(r => setTimeout(r, delayMs));
-        }
-      }
-
-      if (enviando) {
-        mostrarStatus(`¡Terminado! Enviados ${enviados.size} archivos.`);
-      } else {
-        mostrarStatus('Envío detenido manualmente.');
-      }
-      resetBotones();
-    }
-
-    function detenerEnvio() {
-      enviando = false;
-      mostrarStatus('Deteniendo... (esperando envío actual)');
-    }
-
-    function resetBotones() {
-      document.getElementById('startBtn').disabled = false;
-      document.getElementById('stopBtn').disabled = true;
-    }
-
-    function mostrarStatus(msg) {
-      document.getElementById('status').textContent = msg;
-      document.getElementById('error').textContent = '';
-    }
-
-    function mostrarError(msg) {
-      document.getElementById('error').textContent = msg;
-      document.getElementById('status').textContent = '';
-    }
-  </script>
+document.getElementById('stopSend').onclick = () => {
+  if (intervaloEnvio) {
+    clearInterval(intervaloEnvio);
+    intervaloEnvio = null;
+  }
+  mostrarEstado('Envío detenido');
+};
+</script>
 </body>
 </html>
