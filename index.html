@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Envío Archivos Grandes (Chunks) - Solo Raíz</title>
+    <title>Envío Archivos a Múltiples Webhooks (Round-Robin)</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 30px; line-height: 1.6; }
         h1 { color: #2c3e50; }
@@ -12,19 +12,22 @@
         button { cursor: pointer; padding: 12px 20px; }
         #startBtn { background: #27ae60; color: white; border: none; }
         #stopBtn  { background: #c0392b; color: white; border: none; }
-        #status { margin-top: 20px; padding: 15px; border: 1px solid #ddd; background: #f9f9f9; min-height: 200px; white-space: pre-wrap; overflow-y: auto; max-height: 400px; }
+        #status { margin-top: 20px; padding: 15px; border: 1px solid #ddd; background: #f9f9f9; min-height: 200px; white-space: pre-wrap; overflow-y: auto; max-height: 500px; }
         .success { color: #27ae60; font-weight: bold; }
         .error   { color: #c0392b; font-weight: bold; }
         .info    { color: #2980b9; }
-        progress { width: 100%; height: 20px; }
+        textarea { width: 100%; height: 150px; resize: vertical; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Envío de archivos (solo raíz) a Webhook - Soporte para archivos grandes</h1>
+        <h1>Envío de archivos (solo raíz) a múltiples webhooks</h1>
+        <p>Ingresa hasta 6 URLs de webhooks, una por línea. Se usarán en round-robin (rotando).</p>
 
-        <label>URL del Webhook:</label><br>
-        <input type="url" id="webhookUrl" placeholder="https://tu-webhook.com/endpoint" style="width: 100%;" required>
+        <label>Webhooks (uno por línea):</label><br>
+        <textarea id="webhooksList" placeholder="https://webhook1.com/endpoint
+https://webhook2.com/endpoint
+... hasta 6"></textarea>
 
         <br><br>
 
@@ -33,7 +36,7 @@
 
         <br><br>
 
-        <label>Tamaño de cada chunk (MB) para archivos grandes:</label><br>
+        <label>Tamaño de cada chunk para archivos grandes (MB):</label><br>
         <input type="number" id="chunkSizeMB" value="10" min="1" max="100" step="1" style="width: 150px;">
 
         <br><br>
@@ -50,16 +53,18 @@
     </div>
 
     <script>
-        const webhookInput = document.getElementById('webhookUrl');
-        const delayInput   = document.getElementById('delay');
-        const chunkInput   = document.getElementById('chunkSizeMB');
-        const folderInput  = document.getElementById('folderInput');
-        const startBtn     = document.getElementById('startBtn');
-        const stopBtn      = document.getElementById('stopBtn');
-        const status       = document.getElementById('status');
+        const webhooksTextarea = document.getElementById('webhooksList');
+        const delayInput       = document.getElementById('delay');
+        const chunkInput       = document.getElementById('chunkSizeMB');
+        const folderInput      = document.getElementById('folderInput');
+        const startBtn         = document.getElementById('startBtn');
+        const stopBtn          = document.getElementById('stopBtn');
+        const status           = document.getElementById('status');
 
         let isRunning = false;
-        let processedHashes = new Set();
+        let processed = new Set(); // Para evitar duplicados (clave: nombre-tamaño-fecha)
+        let webhookUrls = [];
+        let currentWebhookIndex = 0;
 
         function log(message, className = 'info') {
             const line = document.createElement('div');
@@ -71,32 +76,34 @@
 
         // Filtra solo archivos en raíz
         function filterRootFiles(fileList) {
-            const rootFiles = [];
-            for (const file of fileList) {
-                if (!file.webkitRelativePath.includes('/')) {
-                    rootFiles.push(file);
-                }
-            }
-            return rootFiles;
+            return Array.from(fileList).filter(file => !file.webkitRelativePath.includes('/'));
         }
 
-        // Envía un chunk
-        async function sendChunk(file, chunk, index, totalChunks, delay) {
+        // Obtiene el siguiente webhook en round-robin
+        function getNextWebhook() {
+            if (webhookUrls.length === 0) return null;
+            const url = webhookUrls[currentWebhookIndex];
+            currentWebhookIndex = (currentWebhookIndex + 1) % webhookUrls.length;
+            return url;
+        }
+
+        // Envía un chunk o archivo completo
+        async function sendChunkOrFile(file, blob, chunkIndex, totalChunks, webhookUrl, delay) {
             const formData = new FormData();
-            formData.append('file', chunk);
+            formData.append('file', blob);
             formData.append('filename', file.name);
-            formData.append('chunkIndex', index);
+            formData.append('chunkIndex', chunkIndex);
             formData.append('totalChunks', totalChunks);
             formData.append('lastModified', file.lastModified);
-            // Agrega más si tu webhook necesita (ej: sessionId, etc.)
+            formData.append('size', file.size); // Para ayudar en reconstrucción
 
-            const response = await fetch(webhookInput.value.trim(), {
+            const response = await fetch(webhookUrl, {
                 method: 'POST',
                 body: formData
             });
 
             if (!response.ok) {
-                throw new Error(`Error ${response.status}`);
+                throw new Error(`Error ${response.status} en ${webhookUrl}`);
             }
 
             if (delay > 0) await new Promise(r => setTimeout(r, delay));
@@ -104,8 +111,23 @@
 
         startBtn.onclick = async () => {
             if (isRunning) return;
-            const url = webhookInput.value.trim();
-            if (!url) return alert("Ingresa la URL del webhook.");
+
+            // Leer y validar webhooks
+            webhookUrls = webhooksTextarea.value
+                .split('\n')
+                .map(u => u.trim())
+                .filter(u => u.startsWith('http') && u.length > 10);
+
+            if (webhookUrls.length === 0) {
+                alert("Ingresa al menos un webhook válido.");
+                return;
+            }
+            if (webhookUrls.length > 6) {
+                alert("Máximo 6 webhooks permitidos. Se usarán solo los primeros 6.");
+                webhookUrls = webhookUrls.slice(0, 6);
+            }
+
+            log(`Usando ${webhookUrls.length} webhooks en round-robin.`, 'info');
 
             if (!folderInput.files?.length) return alert("Selecciona una carpeta.");
 
@@ -114,7 +136,8 @@
             const CHUNK_SIZE = chunkSizeMB * 1024 * 1024;
 
             status.innerHTML = '';
-            processedHashes.clear();
+            processed.clear();
+            currentWebhookIndex = 0;
             isRunning = true;
             startBtn.disabled = true;
             stopBtn.disabled = false;
@@ -131,25 +154,25 @@
             for (const file of files) {
                 if (!isRunning) break;
 
-                log(`Archivo: ${file.name} - ${(file.size / (1024*1024)).toFixed(2)} MB`);
-
-                // Para evitar duplicados (hash simple del nombre + tamaño + lastModified)
-                const hash = `${file.name}-${file.size}-${file.lastModified}`;
-                if (processedHashes.has(hash)) {
-                    log(`→ Duplicado, omitiendo`, 'info');
+                const key = `${file.name}-${file.size}-${file.lastModified}`;
+                if (processed.has(key)) {
+                    log(`→ Duplicado omitido: ${file.name}`, 'info');
                     continue;
                 }
-                processedHashes.add(hash);
+                processed.add(key);
+
+                log(`Archivo: ${file.name} - ${(file.size / (1024*1024)).toFixed(2)} MB`);
+
+                const webhookUrl = getNextWebhook();
+                log(`→ Usando webhook: ${webhookUrl.split('//')[1] || webhookUrl}`);
 
                 try {
                     if (file.size <= CHUNK_SIZE) {
-                        // Archivo pequeño → enviar completo
-                        await sendChunk(file, file, 0, 1, delay);
+                        await sendChunkOrFile(file, file, 0, 1, webhookUrl, delay);
                         log(`→ Enviado completo OK`, 'success');
                     } else {
-                        // Archivo grande → dividir en chunks
                         const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-                        log(`→ Dividiendo en ${totalChunks} chunks de ~${chunkSizeMB} MB`, 'info');
+                        log(`→ Dividiendo en ${totalChunks} chunks (~${chunkSizeMB} MB cada uno)`, 'info');
 
                         for (let i = 0; i < totalChunks; i++) {
                             if (!isRunning) break;
@@ -158,10 +181,12 @@
                             const end = Math.min(start + CHUNK_SIZE, file.size);
                             const chunk = file.slice(start, end);
 
-                            log(`→ Enviando chunk ${i+1}/${totalChunks} (${(chunk.size / (1024*1024)).toFixed(1)} MB)`);
-                            await sendChunk(file, chunk, i, totalChunks, delay);
+                            const currentWebhook = getNextWebhook(); // Cada chunk puede ir a webhook diferente (más distribución)
+                            log(`→ Chunk ${i+1}/${totalChunks} → ${currentWebhook.split('//')[1] || currentWebhook}`);
+
+                            await sendChunkOrFile(file, chunk, i, totalChunks, currentWebhook, delay);
                         }
-                        if (isRunning) log(`→ Archivo completo enviado en chunks`, 'success');
+                        if (isRunning) log(`→ Archivo completo enviado`, 'success');
                     }
                 } catch (err) {
                     log(`→ Error en ${file.name}: ${err.message}`, 'error');
