@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>LYNOX HUB - MATRIX GREEN TXT SENDER 🧑‍💻</title>
+  <title>LYNOX HUB - MATRIX GREEN FILE SENDER 🧑‍💻</title>
   <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Press+Start+2P&family=Vt323&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -75,7 +75,7 @@
       margin-bottom: 10px;
     }
 
-    input[type="file"], textarea {
+    input[type="file"], textarea, select {
       background: #001100;
       color: var(--verde-lima);
       border: 2px solid var(--verde-neon);
@@ -113,6 +113,14 @@
       white-space: pre-line;
     }
 
+    .webhook-section {
+      margin: 15px 0;
+      padding: 15px;
+      background: #001100;
+      border: 1px solid var(--verde-neon);
+      border-radius: 8px;
+    }
+
     .footer {
       text-align: center;
       color: #00ff4188;
@@ -130,17 +138,25 @@
 <div id="matrix-overlay"></div>
 
 <div class="container">
-  <h1>LYNOX HUB - TXT SENDER MATRIX 🧑‍💻</h1>
+  <h1>LYNOX HUB - MATRIX GREEN FILE SENDER 🧑‍💻</h1>
   <div class="by">HECHO POR LYNX EL HACKER LOCO</div>
 
   <p style="text-align:center; font-size:1.3rem; margin:20px 0;">
-    Sube muchos archivos → envía SOLO .txt (sin html, imágenes ni videos) a varios webhooks (divididos, 1 por segundo)
+    Sube archivos/carpeta → envía SOLO .txt (sin html/imágenes/videos) a varios webhooks (divididos, 1 por segundo)
   </p>
 
-  <input type="file" id="fileInput" multiple>
+  <input type="file" id="fileInput" webkitdirectory directory multiple>
 
-  <label for="webhooks">Webhooks Discord (uno por línea):</label>
-  <textarea id="webhooks" placeholder="https://discord.com/api/webhooks/1...\nhttps://discord.com/api/webhooks/2...\nhttps://discord.com/api/webhooks/3..."></textarea>
+  <label for="numWebhooks">¿Cuántos webhooks vas a usar? (1-5):</label>
+  <select id="numWebhooks">
+    <option value="1">1</option>
+    <option value="2">2</option>
+    <option value="3">3</option>
+    <option value="4">4</option>
+    <option value="5">5</option>
+  </select>
+
+  <div id="webhookFields"></div>
 
   <div style="text-align:center; margin:30px 0;">
     <button id="startSend">INICIAR ENVÍO DIVIDIDO 🧑‍💻</button>
@@ -175,13 +191,30 @@ function createMatrixChar() {
 
 setInterval(createMatrixChar, 30);
 
-// Lógica de envío
+// Lógica principal
 let archivosFiltrados = [];
 let intervalos = [];
 let paused = false;
+let detenido = false;
 
 const status = document.getElementById('status');
-const webhooksInput = document.getElementById('webhooks');
+const numWebhooksSelect = document.getElementById('numWebhooks');
+const webhookFields = document.getElementById('webhookFields');
+
+// Crear campos de webhook dinámicamente
+numWebhooksSelect.addEventListener('change', () => {
+  webhookFields.innerHTML = '';
+  const num = parseInt(numWebhooksSelect.value);
+  for (let i = 0; i < num; i++) {
+    const div = document.createElement('div');
+    div.className = 'webhook-section';
+    div.innerHTML = `
+      <label for="webhook_${i}">Webhook ${i + 1}:</label>
+      <textarea id="webhook_${i}" placeholder="https://discord.com/api/webhooks/..."></textarea>
+    `;
+    webhookFields.appendChild(div);
+  }
+});
 
 function mostrarEstado(texto, tipo = '') {
   status.textContent = texto;
@@ -190,9 +223,9 @@ function mostrarEstado(texto, tipo = '') {
 
 function esTxtValido(nombre) {
   const ext = nombre.toLowerCase();
-  return ext.endsWith('.txt') && 
-         !ext.includes('.html') && 
-         !ext.includes('.htm') &&
+  return ext.endsWith('.txt') &&
+         !ext.includes('.html') &&
+         !ext.endsWith('.htm') &&
          !ext.endsWith('.jpg') &&
          !ext.endsWith('.jpeg') &&
          !ext.endsWith('.png') &&
@@ -208,7 +241,7 @@ function esTxtValido(nombre) {
 
 function procesarArchivos() {
   const input = document.getElementById('fileInput');
-  if (!input.files?.length) return mostrarEstado('Suelta archivos primero', 'error');
+  if (!input.files?.length) return mostrarEstado('Suelta archivos o carpeta primero', 'error');
 
   archivosFiltrados = Array.from(input.files).filter(file => esTxtValido(file.name));
 
@@ -223,7 +256,7 @@ function procesarArchivos() {
 async function enviarParte(webhook, parteArchivos, parteIndex) {
   let localIndex = 0;
   const intervalo = setInterval(async () => {
-    if (paused) return;
+    if (paused || detenido) return;
 
     if (localIndex >= parteArchivos.length) {
       clearInterval(intervalo);
@@ -273,22 +306,27 @@ async function enviarParte(webhook, parteArchivos, parteIndex) {
 document.getElementById('fileInput').addEventListener('change', procesarArchivos);
 
 document.getElementById('startSend').onclick = () => {
-  if (archivosFiltrados.length === 0) return mostrarEstado('Primero sube archivos .txt', 'warning');
+  if (archivosFiltrados.length === 0) return mostrarEstado('Primero sube archivos o carpeta', 'warning');
 
-  const webhooksText = webhooksInput.value.trim();
-  if (!webhooksText) return mostrarEstado('Pega al menos un webhook (uno por línea)', 'error');
+  const numWebhooks = parseInt(document.getElementById('numWebhooks').value);
+  const webhooks = [];
 
-  const webhooks = webhooksText.split('\n').map(w => w.trim()).filter(w => w.startsWith('https://discord.com/api/webhooks/'));
+  for (let i = 0; i < numWebhooks; i++) {
+    const webhook = document.getElementById(`webhook_${i}`).value.trim();
+    if (webhook && webhook.startsWith('https://discord.com/api/webhooks/')) {
+      webhooks.push(webhook);
+    }
+  }
 
-  if (webhooks.length === 0) return mostrarEstado('Ningún webhook válido detectado', 'error');
+  if (webhooks.length === 0) return mostrarEstado('Al menos un webhook válido es necesario', 'error');
 
-  const numWebhooks = webhooks.length;
-  const porWebhook = Math.ceil(archivosFiltrados.length / numWebhooks);
-  intervalos = new Array(numWebhooks).fill(null);
+  const porWebhook = Math.ceil(archivosFiltrados.length / webhooks.length);
+  intervalos = new Array(webhooks.length).fill(null);
 
-  mostrarEstado(`Iniciando envío dividido en ${numWebhooks} webhooks... 1 .txt por segundo cada uno`);
+  mostrarEstado(`Iniciando envío dividido en ${webhooks.length} webhooks... 1 archivo por segundo cada uno`);
 
   paused = false;
+  detenido = false;
 
   webhooks.forEach((webhook, i) => {
     const inicio = i * porWebhook;
@@ -306,6 +344,7 @@ document.getElementById('pauseSend').onclick = () => {
 };
 
 document.getElementById('stopSend').onclick = () => {
+  detenido = true;
   intervalos.forEach((int, i) => {
     if (int) {
       clearInterval(int);
