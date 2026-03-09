@@ -75,7 +75,7 @@
       margin-bottom: 10px;
     }
 
-    input[type="file"], textarea, select {
+    input[type="file"], textarea {
       background: #001100;
       color: var(--verde-lima);
       border: 2px solid var(--verde-neon);
@@ -84,14 +84,6 @@
       width: 100%;
       margin: 12px 0;
       font-size: 1.2rem;
-    }
-
-    .webhook-section {
-      margin: 20px 0;
-      padding: 15px;
-      background: #001100;
-      border: 1px solid var(--verde-neon);
-      border-radius: 8px;
     }
 
     button {
@@ -121,17 +113,6 @@
       white-space: pre-line;
     }
 
-    #preview {
-      background: #000800;
-      border: 2px dashed var(--verde-neon);
-      border-radius: 10px;
-      padding: 15px;
-      max-height: 350px;
-      overflow-y: auto;
-      margin-top: 20px;
-      color: var(--verde-lima);
-    }
-
     .footer {
       text-align: center;
       color: #00ff4188;
@@ -153,29 +134,21 @@
   <div class="by">HECHO POR LYNX EL HACKER LOCO</div>
 
   <p style="text-align:center; font-size:1.3rem; margin:20px 0;">
-    Sube .txt con enlaces → elige cuántos webhooks → crea campos para cada uno → divide y envía los ARCHIVOS REALES (1 por segundo)
+    Sube muchos archivos → envía SOLO los que NO sean imagen/video/html → divide entre webhooks (1 por segundo)
   </p>
 
-  <input type="file" id="fileInput" accept=".txt" multiple>
+  <input type="file" id="fileInput" multiple>
 
-  <label for="numWebhooks">Número de webhooks (1-5):</label>
-  <select id="numWebhooks">
-    <option value="1">1</option>
-    <option value="2">2</option>
-    <option value="3">3</option>
-    <option value="4">4</option>
-    <option value="5">5</option>
-  </select>
-
-  <div id="webhookFields"></div>
+  <label for="webhooks">Webhooks Discord (uno por línea):</label>
+  <textarea id="webhooks" placeholder="https://discord.com/api/webhooks/1...\nhttps://discord.com/api/webhooks/2...\nhttps://discord.com/api/webhooks/3..."></textarea>
 
   <div style="text-align:center; margin:30px 0;">
     <button id="startSend">INICIAR ENVÍO DIVIDIDO 🧑‍💻</button>
-    <button id="stopSend">PARAR ENVÍO 🛑</button>
+    <button id="pauseSend">PAUSAR / REANUDAR ⏸️</button>
+    <button id="stopSend">ABORTAR 🛑</button>
   </div>
 
-  <div id="status">Esperando infiltración... suelta los txts 💀</div>
-  <div id="preview"></div>
+  <div id="status">Esperando archivos... suéltalos aquí 💀</div>
 </div>
 
 <div class="footer">
@@ -203,99 +176,70 @@ function createMatrixChar() {
 setInterval(createMatrixChar, 30);
 
 // Lógica principal
-let linksFiltrados = [];
+let archivosFiltrados = [];
 let intervalos = [];
+let paused = false;
 
 const status = document.getElementById('status');
-const preview = document.getElementById('preview');
-const numWebhooksSelect = document.getElementById('numWebhooks');
-const webhookFields = document.getElementById('webhookFields');
-
-// Crea campos de webhook dinámicamente
-numWebhooksSelect.addEventListener('change', () => {
-  webhookFields.innerHTML = '';
-  const num = parseInt(numWebhooksSelect.value);
-  for (let i = 0; i < num; i++) {
-    const section = document.createElement('div');
-    section.className = 'webhook-section';
-    section.innerHTML = `
-      <label for="webhook_${i}">Webhook ${i + 1}:</label>
-      <textarea id="webhook_${i}" placeholder="https://discord.com/api/webhooks/${i + 1}..."></textarea>
-    `;
-    webhookFields.appendChild(section);
-  }
-});
+const webhooksInput = document.getElementById('webhooks');
 
 function mostrarEstado(texto, tipo = '') {
   status.textContent = texto;
   status.className = tipo;
 }
 
-function esValidoUrl(url) {
-  try {
-    new URL(url);
-    return true;
-  } catch {
-    return false;
-  }
+function esExcluido(nombre) {
+  const ext = nombre.toLowerCase();
+  return ext.endsWith('.html') ||
+         ext.endsWith('.htm') ||
+         ext.endsWith('.xhtml') ||
+         ext.endsWith('.jpg') ||
+         ext.endsWith('.jpeg') ||
+         ext.endsWith('.png') ||
+         ext.endsWith('.gif') ||
+         ext.endsWith('.webp') ||
+         ext.endsWith('.bmp') ||
+         ext.endsWith('.mp4') ||
+         ext.endsWith('.webm') ||
+         ext.endsWith('.mov') ||
+         ext.endsWith('.avi') ||
+         ext.endsWith('.mkv');
 }
 
-async function procesarArchivos() {
+function procesarArchivos() {
   const input = document.getElementById('fileInput');
-  if (!input.files?.length) return mostrarEstado('Suelta al menos un .txt', 'error');
+  if (!input.files?.length) return mostrarEstado('Suelta archivos primero', 'error');
 
-  mostrarEstado(`Leyendo ${input.files.length} archivo(s)...`);
+  archivosFiltrados = Array.from(input.files).filter(file => !esExcluido(file.name));
 
-  const setUrls = new Set();
-
-  for (const file of input.files) {
-    try {
-      const txt = await file.text();
-      const urls = txt.match(/https?:\/\/[^\s<>"'()]+/gi) || [];
-      urls.forEach(u => {
-        const urlLimpia = u.trim();
-        if (esValidoUrl(urlLimpia)) setUrls.add(urlLimpia);
-      });
-    } catch {}
-  }
-
-  linksFiltrados = Array.from(setUrls);
-
-  if (linksFiltrados.length === 0) {
-    mostrarEstado('No encontré enlaces válidos https://', 'warning');
-    preview.textContent = '';
+  if (archivosFiltrados.length === 0) {
+    mostrarEstado('No hay archivos válidos (excluidos html, imágenes y videos)', 'warning');
     return;
   }
 
-  preview.textContent = linksFiltrados.map((url, i) => `${i+1}. ${url}`).join('\n');
-  mostrarEstado(`Listo: ${linksFiltrados.length} enlaces encontrados`, 'success');
+  mostrarEstado(`Listo: ${archivosFiltrados.length} archivos válidos cargados`, 'success');
 }
 
-async function enviarParte(webhook, parteLinks, parteIndex) {
+async function enviarParte(webhook, parteArchivos, parteIndex) {
   let localIndex = 0;
   const intervalo = setInterval(async () => {
-    if (localIndex >= parteLinks.length) {
+    if (paused) return;
+
+    if (localIndex >= parteArchivos.length) {
       clearInterval(intervalo);
       intervalos[parteIndex] = null;
-      mostrarEstado(`Webhook ${parteIndex + 1} terminado (${parteLinks.length} archivos)`, 'success');
+      mostrarEstado(`Webhook ${parteIndex + 1} terminado (${parteArchivos.length} archivos)`, 'success');
       return;
     }
 
-    const url = parteLinks[localIndex];
-    const numeroGlobal = parteIndex * Math.ceil(linksFiltrados.length / intervalos.length) + localIndex + 1;
+    const file = parteArchivos[localIndex];
+    const numeroGlobal = parteIndex * Math.ceil(archivosFiltrados.length / intervalos.length) + localIndex + 1;
 
     try {
-      const proxy = 'https://cors-anywhere.herokuapp.com/';
-      const response = await fetch(proxy + url);
-      if (!response.ok) throw new Error(`Fallo descarga: ${response.status}`);
-
-      const blob = await response.blob();
-      const fileName = url.split('/').pop() || `archivo_${numeroGlobal}`;
-
       const formData = new FormData();
-      formData.append('file', blob, fileName);
+      formData.append('file', file);
       formData.append('payload_json', JSON.stringify({
-        content: `**Archivo ${numeroGlobal}/${linksFiltrados.length}** - ${fileName}\nHecho por Lynox Hub`
+        content: `**Archivo ${numeroGlobal}/${archivosFiltrados.length}** - ${file.name}\nHecho por Lynox Hub`
       }));
 
       const res = await fetch(webhook, {
@@ -304,7 +248,7 @@ async function enviarParte(webhook, parteLinks, parteIndex) {
       });
 
       if (res.ok) {
-        mostrarEstado(`Enviado archivo ${numeroGlobal}/${linksFiltrados.length} a webhook ${parteIndex + 1}`);
+        mostrarEstado(`Enviado ${numeroGlobal}/${archivosFiltrados.length} (${file.name}) a webhook ${parteIndex + 1}`);
       } else if (res.status === 429) {
         mostrarEstado(`Rate limit en webhook ${parteIndex + 1} → parando`, 'warning');
         clearInterval(intervalo);
@@ -329,33 +273,36 @@ async function enviarParte(webhook, parteLinks, parteIndex) {
 document.getElementById('fileInput').addEventListener('change', procesarArchivos);
 
 document.getElementById('startSend').onclick = () => {
-  if (linksFiltrados.length === 0) return mostrarEstado('Primero carga archivos .txt', 'warning');
+  if (archivosFiltrados.length === 0) return mostrarEstado('Primero sube archivos', 'warning');
 
-  const numWebhooks = parseInt(numWebhooksSelect.value);
-  const webhooks = [];
+  const webhooksText = webhooksInput.value.trim();
+  if (!webhooksText) return mostrarEstado('Pega al menos un webhook (uno por línea)', 'error');
 
-  for (let i = 0; i < numWebhooks; i++) {
-    const webhook = document.getElementById(`webhook_${i}`).value.trim();
-    if (webhook && webhook.startsWith('https://discord.com/api/webhooks/')) {
-      webhooks.push(webhook);
-    }
-  }
+  const webhooks = webhooksText.split('\n').map(w => w.trim()).filter(w => w.startsWith('https://discord.com/api/webhooks/'));
 
-  if (webhooks.length === 0) return mostrarEstado('Al menos un webhook válido', 'error');
+  if (webhooks.length === 0) return mostrarEstado('Ningún webhook válido detectado', 'error');
 
-  const porWebhook = Math.ceil(linksFiltrados.length / webhooks.length);
-  intervalos = new Array(webhooks.length).fill(null);
+  const numWebhooks = webhooks.length;
+  const porWebhook = Math.ceil(archivosFiltrados.length / numWebhooks);
+  intervalos = new Array(numWebhooks).fill(null);
 
-  mostrarEstado(`Iniciando envío dividido en ${webhooks.length} webhooks...`);
+  mostrarEstado(`Iniciando envío dividido en ${numWebhooks} webhooks... 1 archivo por segundo cada uno`);
+
+  paused = false;
 
   webhooks.forEach((webhook, i) => {
     const inicio = i * porWebhook;
-    const fin = Math.min(inicio + porWebhook, linksFiltrados.length);
-    const parte = linksFiltrados.slice(inicio, fin);
+    const fin = Math.min(inicio + porWebhook, archivosFiltrados.length);
+    const parte = archivosFiltrados.slice(inicio, fin);
     if (parte.length > 0) {
       enviarParte(webhook, parte, i);
     }
   });
+};
+
+document.getElementById('pauseSend').onclick = () => {
+  paused = !paused;
+  mostrarEstado(paused ? 'Envío PAUSADO (puedes reanudar)' : 'Envío REANUDADO', paused ? 'warning' : 'success');
 };
 
 document.getElementById('stopSend').onclick = () => {
@@ -365,7 +312,8 @@ document.getElementById('stopSend').onclick = () => {
       intervalos[i] = null;
     }
   });
-  mostrarEstado('Envío detenido');
+  paused = false;
+  mostrarEstado('Envío detenido por completo');
 };
 </script>
 </body>
