@@ -1,135 +1,84 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Envío de Archivos a Webhooks</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        #status { margin-top: 20px; color: green; }
-        #error { color: red; }
-        input, button { margin: 10px 0; }
-    </style>
-</head>
-<body>
-    <h1>Envío de Archivos desde Carpeta a Múltiples Webhooks</h1>
-    <p>Selecciona una carpeta para enviar sus archivos a diferentes webhooks. Los archivos se dividirán equitativamente entre los webhooks para evitar duplicados. Incluye manejo de errores para no "romper" los webhooks (con reintentos y límites de tasa).</p>
-    
-    <label for="folder">Selecciona una carpeta:</label><br>
-    <input type="file" id="folder" webkitdirectory directory multiple><br>
-    
-    <label for="webhooks">Ingresa los URLs de los webhooks (separados por comas):</label><br>
-    <input type="text" id="webhooks" placeholder="https://webhook1.com, https://webhook2.com" style="width: 400px;"><br>
-    
-    <button id="uploadBtn">Subir Archivos</button>
-    <button id="stopBtn" disabled>Parar</button>
-    
-    <div id="status"></div>
-    <div id="error"></div>
+<script>
+    const uploadBtn = document.getElementById('uploadBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const folderInput = document.getElementById('folder');
+    const webhooksInput = document.getElementById('webhooks');
+    const statusDiv = document.getElementById('status');
+    const errorDiv = document.getElementById('error');
 
-    <script>
-        const uploadBtn = document.getElementById('uploadBtn');
-        const stopBtn = document.getElementById('stopBtn');
-        const folderInput = document.getElementById('folder');
-        const webhooksInput = document.getElementById('webhooks');
-        const statusDiv = document.getElementById('status');
-        const errorDiv = document.getElementById('error');
-        
-        let abortController = null;
-        let isUploading = false;
+    let abortController = null;
 
-        uploadBtn.addEventListener('click', async () => {
-            const files = Array.from(folderInput.files);
-            const webhookUrls = webhooksInput.value.split(',').map(url => url.trim()).filter(url => url);
-            
-            if (files.length === 0) {
-                errorDiv.textContent = 'Selecciona una carpeta con archivos.';
-                return;
-            }
-            if (webhookUrls.length === 0) {
-                errorDiv.textContent = 'Ingresa al menos un webhook URL.';
-                return;
-            }
-            
-            errorDiv.textContent = '';
-            statusDiv.textContent = 'Iniciando envío...';
-            uploadBtn.disabled = true;
-            stopBtn.disabled = false;
-            isUploading = true;
-            abortController = new AbortController();
-            
-            try {
-                // Dividir archivos equitativamente entre webhooks (sin duplicados)
-                const chunks = [];
-                for (let i = 0; i < webhookUrls.length; i++) {
-                    chunks.push([]);
-                }
-                files.forEach((file, index) => {
-                    const chunkIndex = index % webhookUrls.length;
-                    chunks[chunkIndex].push(file);
-                });
-                
-                // Enviar en paralelo con reintentos y límite de tasa (ej: 1 por segundo por webhook)
-                const promises = chunks.map((chunk, index) => 
-                    sendToWebhook(webhookUrls[index], chunk, abortController.signal)
-                );
-                
-                await Promise.all(promises);
-                statusDiv.textContent = 'Envío completado exitosamente.';
-            } catch (err) {
-                if (err.name === 'AbortError') {
-                    statusDiv.textContent = 'Envío detenido por el usuario.';
-                } else {
-                    errorDiv.textContent = `Error: ${err.message}`;
-                }
-            } finally {
-                resetButtons();
-            }
-        });
+    uploadBtn.addEventListener('click', async () => {
+        const files = Array.from(folderInput.files);
+        let webhookUrls = webhooksInput.value.split(',').map(url => url.trim()).filter(url => url);
 
-        stopBtn.addEventListener('click', () => {
-            if (abortController) {
-                abortController.abort();
-            }
-            resetButtons();
-        });
+        if (files.length === 0) return errorDiv.textContent = 'Selecciona carpeta con archivos.';
+        if (webhookUrls.length === 0) return errorDiv.textContent = 'Ingresa al menos un webhook.';
 
-        async function sendToWebhook(url, files, signal) {
-            for (const file of files) {
-                if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
-                
-                const formData = new FormData();
-                formData.append('file', file);
-                
-                let attempts = 0;
-                const maxAttempts = 3;
-                while (attempts < maxAttempts) {
-                    try {
-                        const response = await fetch(url, {
-                            method: 'POST',
-                            body: formData,
-                            signal
-                        });
-                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                        statusDiv.textContent = `Archivo ${file.name} enviado a ${url}.`;
-                        break; // Éxito, siguiente archivo
-                    } catch (err) {
-                        if (signal.aborted) throw err;
-                        attempts++;
-                        if (attempts >= maxAttempts) throw err;
-                        await new Promise(resolve => setTimeout(resolve, 1000 * attempts)); // Espera exponencial
-                    }
-                }
-                await new Promise(resolve => setTimeout(resolve, 1000)); // Límite de tasa: 1 seg por archivo
-            }
-        }
+        errorDiv.textContent = '';
+        statusDiv.textContent = 'Iniciando...';
+        uploadBtn.disabled = true;
+        stopBtn.disabled = false;
+        abortController = new AbortController();
 
-        function resetButtons() {
+        try {
+            const chunks = Array(webhookUrls.length).fill().map(() => []);
+            files.forEach((file, i) => chunks[i % webhookUrls.length].push(file));
+
+            await Promise.all(
+                chunks.map((chunk, i) => sendToWebhook(webhookUrls[i], chunk, abortController.signal))
+            );
+            statusDiv.textContent = '¡Envío completado!';
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                statusDiv.textContent = 'Detenido por el usuario.';
+            } else {
+                errorDiv.textContent = `Error: ${err.message}`;
+            }
+        } finally {
             uploadBtn.disabled = false;
             stopBtn.disabled = true;
-            isUploading = false;
             abortController = null;
         }
-    </script>
-</body>
-</html>
+    });
+
+    stopBtn.addEventListener('click', () => {
+        abortController?.abort();
+        uploadBtn.disabled = false;
+        stopBtn.disabled = true;
+    });
+
+    async function sendToWebhook(url, files, signal) {
+        for (const file of files) {
+            if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+
+            const formData = new FormData();
+            formData.append('file', file);  // Cambia 'file' si tu webhook espera otro nombre (ej: 'archivo', 'attachment')
+
+            let attempts = 0;
+            while (attempts < 3) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        body: formData,
+                        signal
+                    });
+
+                    if (!response.ok) {
+                        const errorText = await response.text().catch(() => 'Sin detalles');
+                        throw new Error(`status: ${response.status} - ${errorText}`);
+                    }
+
+                    statusDiv.textContent = `OK → ${file.name} a ${url}`;
+                    break;
+                } catch (err) {
+                    attempts++;
+                    if (attempts >= 3 || signal.aborted) throw err;
+                    statusDiv.textContent = `Reintento ${attempts}/3 en ${file.name}...`;
+                    await new Promise(r => setTimeout(r, 2000 * attempts));
+                }
+            }
+            await new Promise(r => setTimeout(r, 1200)); // rate limit suave
+        }
+    }
+</script>
