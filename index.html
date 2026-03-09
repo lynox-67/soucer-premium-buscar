@@ -1,213 +1,152 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Envío Archivos a Múltiples Webhooks (Round-Robin)</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 30px; line-height: 1.6; }
-        h1 { color: #2c3e50; }
-        .container { max-width: 900px; margin: 0 auto; }
-        input, button, textarea { margin: 10px 0; padding: 10px; font-size: 16px; }
-        button { cursor: pointer; padding: 12px 20px; }
-        #startBtn { background: #27ae60; color: white; border: none; }
-        #stopBtn  { background: #c0392b; color: white; border: none; }
-        #status { margin-top: 20px; padding: 15px; border: 1px solid #ddd; background: #f9f9f9; min-height: 200px; white-space: pre-wrap; overflow-y: auto; max-height: 500px; }
-        .success { color: #27ae60; font-weight: bold; }
-        .error   { color: #c0392b; font-weight: bold; }
-        .info    { color: #2980b9; }
-        textarea { width: 100%; height: 150px; resize: vertical; }
-    </style>
+  <meta charset="UTF-8">
+  <title>Enviar Archivos de Carpeta a Webhooks</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    input, button { margin: 10px 0; }
+    #status { color: green; }
+    #error { color: red; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Envío de archivos (solo raíz) a múltiples webhooks</h1>
-        <p>Ingresa hasta 6 URLs de webhooks, una por línea. Se usarán en round-robin (rotando).</p>
+  <h2>Envía Archivos de una Carpeta a Múltiples Webhooks</h2>
+  
+  <p>1. Ingresa las URLs de los webhooks (separadas por coma, ej: url1, url2, url3). Los archivos se dividirán entre ellos.</p>
+  <input type="text" id="webhooks" size="80" placeholder="https://discord.com/api/webhooks/..., https://discord.com/api/webhooks/..."><br>
+  
+  <p>2. Selecciona una carpeta completa (solo archivos .html serán enviados, uno por uno).</p>
+  <input type="file" id="folder" webkitdirectory directory multiple><br>
+  
+  <p>3. Opcional: Tiempo de espera entre envíos (en ms, ej: 1000 para 1 segundo). Para evitar rate limits.</p>
+  <input type="number" id="delay" value="1000" min="0"><br>
+  
+  <button id="startBtn" onclick="iniciarEnvio()">Comenzar Envío</button>
+  <button id="stopBtn" onclick="detenerEnvio()" disabled>Detener Envío</button>
+  
+  <p id="status"></p>
+  <p id="error"></p>
 
-        <label>Webhooks (uno por línea):</label><br>
-        <textarea id="webhooksList" placeholder="https://webhook1.com/endpoint
-https://webhook2.com/endpoint
-... hasta 6"></textarea>
+  <script>
+    let enviando = false;
+    let archivosPendientes = [];
+    let enviados = new Set(); // Para evitar duplicados (basado en nombre de archivo)
+    let indexActual = 0;
+    let webhooks = [];
+    let delay = 1000;
 
-        <br><br>
+    // Función para iniciar el envío
+    async function iniciarEnvio() {
+      const webhooksInput = document.getElementById('webhooks').value.trim();
+      delay = parseInt(document.getElementById('delay').value) || 1000;
+      const folderInput = document.getElementById('folder');
 
-        <label>Retraso entre envíos/chunks (ms):</label><br>
-        <input type="number" id="delay" value="500" min="0" step="100" style="width: 150px;">
+      if (!webhooksInput) {
+        mostrarError('Ingresa al menos una URL de webhook.');
+        return;
+      }
+      webhooks = webhooksInput.split(',').map(url => url.trim()).filter(url => url.startsWith('https://discord.com/api/webhooks/'));
 
-        <br><br>
+      if (webhooks.length === 0) {
+        mostrarError('URLs de webhooks inválidas.');
+        return;
+      }
 
-        <label>Tamaño de cada chunk para archivos grandes (MB):</label><br>
-        <input type="number" id="chunkSizeMB" value="10" min="1" max="100" step="1" style="width: 150px;">
+      if (folderInput.files.length === 0) {
+        mostrarError('Selecciona una carpeta con archivos.');
+        return;
+      }
 
-        <br><br>
+      // Filtrar solo .html y evitar duplicados
+      archivosPendientes = Array.from(folderInput.files).filter(file => file.name.endsWith('.html') && !enviados.has(file.name));
+      if (archivosPendientes.length === 0) {
+        mostrarError('No hay archivos .html nuevos en la carpeta.');
+        return;
+      }
 
-        <label>Selecciona la carpeta (solo archivos directos en raíz):</label><br>
-        <input type="file" id="folderInput" webkitdirectory directory multiple />
+      enviando = true;
+      document.getElementById('startBtn').disabled = true;
+      document.getElementById('stopBtn').disabled = false;
+      mostrarStatus(`Iniciando envío de ${archivosPendientes.length} archivos...`);
 
-        <br><br>
+      // Enviar uno por uno, dividiendo entre webhooks
+      indexActual = 0;
+      await procesarEnvio();
+    }
 
-        <button id="startBtn">Comenzar</button>
-        <button id="stopBtn" disabled>Detener</button>
+    // Función para procesar el envío secuencial
+    async function procesarEnvio() {
+      while (enviando && indexActual < archivosPendientes.length) {
+        const file = archivosPendientes[indexActual];
+        const webhookIndex = indexActual % webhooks.length; // Dividir entre webhooks (round-robin)
+        const webhook = webhooks[webhookIndex];
 
-        <div id="status">Estado: Esperando...</div>
-    </div>
+        mostrarStatus(`Enviando ${file.name} a webhook ${webhookIndex + 1}...`);
 
-    <script>
-        const webhooksTextarea = document.getElementById('webhooksList');
-        const delayInput       = document.getElementById('delay');
-        const chunkInput       = document.getElementById('chunkSizeMB');
-        const folderInput      = document.getElementById('folderInput');
-        const startBtn         = document.getElementById('startBtn');
-        const stopBtn          = document.getElementById('stopBtn');
-        const status           = document.getElementById('status');
+        const formData = new FormData();
+        formData.append('payload_json', JSON.stringify({
+          content: `Archivo HTML: ${file.name}`
+        }));
+        formData.append('files[]', file);
 
-        let isRunning = false;
-        let processed = new Set(); // Para evitar duplicados (clave: nombre-tamaño-fecha)
-        let webhookUrls = [];
-        let currentWebhookIndex = 0;
-
-        function log(message, className = 'info') {
-            const line = document.createElement('div');
-            line.className = className;
-            line.textContent = message;
-            status.appendChild(line);
-            status.scrollTop = status.scrollHeight;
+        try {
+          const response = await fetch(webhook, {
+            method: 'POST',
+            body: formData
+          });
+          if (response.ok) {
+            enviados.add(file.name); // Marcar como enviado para evitar repeticiones
+            mostrarStatus(`${file.name} enviado exitosamente.`);
+          } else {
+            mostrarError(`Error enviando ${file.name}: ${response.status}`);
+          }
+        } catch (err) {
+          mostrarError(`Error al enviar ${file.name}: ${err.message}`);
         }
 
-        // Filtra solo archivos en raíz
-        function filterRootFiles(fileList) {
-            return Array.from(fileList).filter(file => !file.webkitRelativePath.includes('/'));
+        indexActual++;
+        if (enviando && indexActual < archivosPendientes.length) {
+          await esperar(delay); // Esperar el tiempo necesario entre envíos
         }
+      }
 
-        // Obtiene el siguiente webhook en round-robin
-        function getNextWebhook() {
-            if (webhookUrls.length === 0) return null;
-            const url = webhookUrls[currentWebhookIndex];
-            currentWebhookIndex = (currentWebhookIndex + 1) % webhookUrls.length;
-            return url;
-        }
+      if (enviando) {
+        mostrarStatus('Todos los archivos enviados.');
+      } else {
+        mostrarStatus('Envío detenido.');
+      }
+      resetBotones();
+    }
 
-        // Envía un chunk o archivo completo
-        async function sendChunkOrFile(file, blob, chunkIndex, totalChunks, webhookUrl, delay) {
-            const formData = new FormData();
-            formData.append('file', blob);
-            formData.append('filename', file.name);
-            formData.append('chunkIndex', chunkIndex);
-            formData.append('totalChunks', totalChunks);
-            formData.append('lastModified', file.lastModified);
-            formData.append('size', file.size); // Para ayudar en reconstrucción
+    // Función para detener
+    function detenerEnvio() {
+      enviando = false;
+      mostrarStatus('Deteniendo envío...');
+      resetBotones();
+    }
 
-            const response = await fetch(webhookUrl, {
-                method: 'POST',
-                body: formData
-            });
+    // Resetear botones
+    function resetBotones() {
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('stopBtn').disabled = true;
+    }
 
-            if (!response.ok) {
-                throw new Error(`Error ${response.status} en ${webhookUrl}`);
-            }
+    // Esperar tiempo en ms
+    function esperar(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
 
-            if (delay > 0) await new Promise(r => setTimeout(r, delay));
-        }
+    // Mostrar status
+    function mostrarStatus(mensaje) {
+      document.getElementById('status').textContent = mensaje;
+      document.getElementById('error').textContent = '';
+    }
 
-        startBtn.onclick = async () => {
-            if (isRunning) return;
-
-            // Leer y validar webhooks
-            webhookUrls = webhooksTextarea.value
-                .split('\n')
-                .map(u => u.trim())
-                .filter(u => u.startsWith('http') && u.length > 10);
-
-            if (webhookUrls.length === 0) {
-                alert("Ingresa al menos un webhook válido.");
-                return;
-            }
-            if (webhookUrls.length > 6) {
-                alert("Máximo 6 webhooks permitidos. Se usarán solo los primeros 6.");
-                webhookUrls = webhookUrls.slice(0, 6);
-            }
-
-            log(`Usando ${webhookUrls.length} webhooks en round-robin.`, 'info');
-
-            if (!folderInput.files?.length) return alert("Selecciona una carpeta.");
-
-            const delay = parseInt(delayInput.value) || 500;
-            const chunkSizeMB = parseInt(chunkInput.value) || 10;
-            const CHUNK_SIZE = chunkSizeMB * 1024 * 1024;
-
-            status.innerHTML = '';
-            processed.clear();
-            currentWebhookIndex = 0;
-            isRunning = true;
-            startBtn.disabled = true;
-            stopBtn.disabled = false;
-
-            const files = filterRootFiles(folderInput.files);
-            if (!files.length) {
-                log("No hay archivos en la raíz.", 'error');
-                finish();
-                return;
-            }
-
-            log(`Procesando ${files.length} archivos (solo raíz)...`, 'info');
-
-            for (const file of files) {
-                if (!isRunning) break;
-
-                const key = `${file.name}-${file.size}-${file.lastModified}`;
-                if (processed.has(key)) {
-                    log(`→ Duplicado omitido: ${file.name}`, 'info');
-                    continue;
-                }
-                processed.add(key);
-
-                log(`Archivo: ${file.name} - ${(file.size / (1024*1024)).toFixed(2)} MB`);
-
-                const webhookUrl = getNextWebhook();
-                log(`→ Usando webhook: ${webhookUrl.split('//')[1] || webhookUrl}`);
-
-                try {
-                    if (file.size <= CHUNK_SIZE) {
-                        await sendChunkOrFile(file, file, 0, 1, webhookUrl, delay);
-                        log(`→ Enviado completo OK`, 'success');
-                    } else {
-                        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-                        log(`→ Dividiendo en ${totalChunks} chunks (~${chunkSizeMB} MB cada uno)`, 'info');
-
-                        for (let i = 0; i < totalChunks; i++) {
-                            if (!isRunning) break;
-
-                            const start = i * CHUNK_SIZE;
-                            const end = Math.min(start + CHUNK_SIZE, file.size);
-                            const chunk = file.slice(start, end);
-
-                            const currentWebhook = getNextWebhook(); // Cada chunk puede ir a webhook diferente (más distribución)
-                            log(`→ Chunk ${i+1}/${totalChunks} → ${currentWebhook.split('//')[1] || currentWebhook}`);
-
-                            await sendChunkOrFile(file, chunk, i, totalChunks, currentWebhook, delay);
-                        }
-                        if (isRunning) log(`→ Archivo completo enviado`, 'success');
-                    }
-                } catch (err) {
-                    log(`→ Error en ${file.name}: ${err.message}`, 'error');
-                }
-            }
-
-            finish();
-        };
-
-        function finish() {
-            if (isRunning) log("Proceso terminado.", 'info');
-            else log("Detenido por el usuario.", 'info');
-            isRunning = false;
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
-        }
-
-        stopBtn.onclick = () => {
-            isRunning = false;
-            log("Deteniendo... (termina el envío actual)", 'info');
-        };
-    </script>
+    // Mostrar error
+    function mostrarError(mensaje) {
+      document.getElementById('error').textContent = mensaje;
+    }
+  </script>
 </body>
 </html>
