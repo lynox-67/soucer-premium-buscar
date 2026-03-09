@@ -20,6 +20,7 @@
       background: var(--negro-matrix);
       color: var(--verde-neon);
       font-family: 'Vt323', monospace;
+      font-size: 1.2rem; /* fuentes más grandes */
     }
 
     #bg-video {
@@ -43,9 +44,9 @@
     .matrix-char {
       position: absolute;
       color: var(--verde-lima);
-      font-size: 18px;
+      font-size: 22px; /* lluvia de código más grande */
       white-space: pre;
-      text-shadow: 0 0 10px var(--verde-neon);
+      text-shadow: 0 0 12px var(--verde-neon);
       animation: fall linear forwards;
     }
 
@@ -56,76 +57,70 @@
     .container {
       position: relative;
       z-index: 10;
-      background: rgba(0, 20, 0, 0.75);
-      backdrop-filter: blur(8px);
-      border: 3px solid var(--verde-neon);
-      border-radius: 16px;
-      margin: 20px auto;
-      padding: 30px;
-      max-width: 900px;
-      box-shadow: 0 0 40px rgba(0,255,65,0.4);
+      background: rgba(0, 20, 0, 0.8);
+      backdrop-filter: blur(10px);
+      border: 4px solid var(--verde-neon);
+      border-radius: 20px;
+      margin: 30px auto;
+      padding: 40px;
+      max-width: 1200px; /* más ancho */
+      box-shadow: 0 0 60px rgba(0,255,65,0.5);
     }
 
     h1 {
       font-family: 'Press Start 2P', cursive;
-      font-size: 3rem;
+      font-size: 3.8rem; /* título más grande */
       text-align: center;
       color: var(--verde-lima);
-      text-shadow: 0 0 20px var(--verde-neon);
-      margin-bottom: 10px;
+      text-shadow: 0 0 25px var(--verde-neon);
+      margin-bottom: 20px;
     }
 
     input[type="file"], textarea, select {
       background: #001100;
       color: var(--verde-lima);
-      border: 2px solid var(--verde-neon);
-      border-radius: 8px;
-      padding: 12px;
+      border: 3px solid var(--verde-neon);
+      border-radius: 10px;
+      padding: 16px;
       width: 100%;
-      margin: 12px 0;
-      font-size: 1.2rem;
+      margin: 15px 0;
+      font-size: 1.4rem; /* más grande */
     }
 
     button {
       background: linear-gradient(45deg, var(--verde-lima), #00aa00);
       color: black;
       border: none;
-      padding: 14px 30px;
-      margin: 10px;
-      border-radius: 10px;
-      font-size: 1.3rem;
+      padding: 20px 40px; /* botones más grandes */
+      margin: 15px;
+      border-radius: 12px;
+      font-size: 1.6rem;
       cursor: pointer;
-      box-shadow: 0 0 20px rgba(0,255,65,0.6);
+      box-shadow: 0 0 25px rgba(0,255,65,0.7);
+      min-width: 220px;
     }
 
     button:hover {
-      transform: scale(1.05);
-      box-shadow: 0 0 30px rgba(0,255,65,0.9);
+      transform: scale(1.1);
+      box-shadow: 0 0 40px rgba(0,255,65,1);
     }
 
     #status {
       background: rgba(0,0,0,0.7);
-      padding: 15px;
-      border-radius: 10px;
-      margin: 20px 0;
-      font-size: 1.3rem;
-      border-left: 8px solid var(--verde-lima);
+      padding: 20px;
+      border-radius: 12px;
+      margin: 30px 0;
+      font-size: 1.5rem;
+      border-left: 10px solid var(--verde-lima);
       white-space: pre-line;
-    }
-
-    .webhook-section {
-      margin: 15px 0;
-      padding: 15px;
-      background: #001100;
-      border: 1px solid var(--verde-neon);
-      border-radius: 8px;
+      min-height: 80px;
     }
 
     .footer {
       text-align: center;
       color: #00ff4188;
-      margin-top: 30px;
-      font-size: 1.2rem;
+      margin-top: 40px;
+      font-size: 1.4rem;
     }
   </style>
 </head>
@@ -141,13 +136,13 @@
   <h1>LYNOX HUB - MATRIX GREEN FILE SENDER 🧑‍💻</h1>
   <div class="by">HECHO POR LYNX EL HACKER LOCO</div>
 
-  <p style="text-align:center; font-size:1.3rem; margin:20px 0;">
+  <p style="text-align:center; font-size:1.5rem; margin:30px 0;">
     Sube archivos/carpeta → envía SOLO .txt (sin html/imágenes/videos) a varios webhooks (divididos, 1 por segundo)
   </p>
 
   <input type="file" id="fileInput" webkitdirectory directory multiple>
 
-  <label for="numWebhooks">¿Cuántos webhooks vas a usar? (1-5):</label>
+  <label for="numWebhooks" style="font-size:1.5rem; margin-top:20px;">¿Cuántos webhooks usar? (1-5):</label>
   <select id="numWebhooks">
     <option value="1">1</option>
     <option value="2">2</option>
@@ -158,9 +153,10 @@
 
   <div id="webhookFields"></div>
 
-  <div style="text-align:center; margin:30px 0;">
+  <div style="text-align:center; margin:50px 0;">
     <button id="startSend">INICIAR ENVÍO DIVIDIDO 🧑‍💻</button>
     <button id="pauseSend">PAUSAR / REANUDAR ⏸️</button>
+    <button id="restartSend">VOLVER A INICIAR 🔄</button>
     <button id="stopSend">ABORTAR 🛑</button>
   </div>
 
@@ -172,7 +168,7 @@
 </div>
 
 <script>
-// Matrix rain
+// Matrix rain (más intensa)
 const matrixOverlay = document.getElementById('matrix-overlay');
 const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*';
 
@@ -181,15 +177,15 @@ function createMatrixChar() {
   char.className = 'matrix-char';
   char.textContent = chars[Math.floor(Math.random() * chars.length)];
   char.style.left = Math.random() * 100 + 'vw';
-  char.style.top = '-30px';
-  char.style.animationDuration = (Math.random() * 5 + 3) + 's';
-  char.style.opacity = Math.random() * 0.7 + 0.3;
-  char.style.fontSize = Math.random() * 18 + 14 + 'px';
+  char.style.top = '-40px';
+  char.style.animationDuration = (Math.random() * 4 + 2) + 's';
+  char.style.opacity = Math.random() * 0.8 + 0.2;
+  char.style.fontSize = Math.random() * 20 + 16 + 'px';
   matrixOverlay.appendChild(char);
-  setTimeout(() => char.remove(), 12000);
+  setTimeout(() => char.remove(), 15000);
 }
 
-setInterval(createMatrixChar, 30);
+setInterval(createMatrixChar, 25);
 
 // Lógica principal
 let archivosFiltrados = [];
@@ -201,7 +197,7 @@ const status = document.getElementById('status');
 const numWebhooksSelect = document.getElementById('numWebhooks');
 const webhookFields = document.getElementById('webhookFields');
 
-// Crear campos de webhook dinámicamente
+// Crear campos dinámicos para webhooks
 numWebhooksSelect.addEventListener('change', () => {
   webhookFields.innerHTML = '';
   const num = parseInt(numWebhooksSelect.value);
@@ -209,7 +205,7 @@ numWebhooksSelect.addEventListener('change', () => {
     const div = document.createElement('div');
     div.className = 'webhook-section';
     div.innerHTML = `
-      <label for="webhook_${i}">Webhook ${i + 1}:</label>
+      <label for="webhook_${i}" style="font-size:1.4rem;">Webhook ${i + 1}:</label>
       <textarea id="webhook_${i}" placeholder="https://discord.com/api/webhooks/..."></textarea>
     `;
     webhookFields.appendChild(div);
@@ -353,6 +349,19 @@ document.getElementById('stopSend').onclick = () => {
   });
   paused = false;
   mostrarEstado('Envío detenido por completo');
+};
+
+document.getElementById('restartSend').onclick = () => {
+  // Resetear todo para volver a iniciar
+  archivosFiltrados = [];
+  intervalos.forEach(int => int && clearInterval(int));
+  intervalos = [];
+  paused = false;
+  detenido = false;
+  document.getElementById('fileInput').value = '';
+  document.getElementById('status').textContent = 'Listo para reiniciar → sube archivos de nuevo';
+  document.getElementById('preview').textContent = '';
+  mostrarEstado('Reiniciado - carga archivos otra vez', 'success');
 };
 </script>
 </body>
