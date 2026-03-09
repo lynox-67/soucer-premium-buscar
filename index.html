@@ -2,150 +2,134 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Enviar Archivos de Carpeta a Webhooks</title>
+  <title>Enviar Scripts y TXT por Webhooks (sin imágenes/videos)</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    input, button { margin: 10px 0; }
-    #status { color: green; }
-    #error { color: red; }
+    body { font-family: Arial, sans-serif; margin: 20px; background: #1e1e1e; color: #e0e0e0; }
+    input, button { margin: 10px 0; padding: 8px; }
+    button { background: #5865f2; color: white; border: none; cursor: pointer; }
+    button:disabled { background: #3f3f3f; }
+    #status { color: #43b581; font-weight: bold; }
+    #error { color: #f04747; }
+    h2 { color: #fff; }
   </style>
 </head>
 <body>
-  <h2>Envía Archivos de una Carpeta a Múltiples Webhooks</h2>
+  <h2>Enviar Archivos de Carpeta a Webhooks (solo TXT, LUA, etc. – sin imágenes ni videos)</h2>
   
-  <p>1. Ingresa las URLs de los webhooks (separadas por coma, ej: url1, url2, url3). Los archivos se dividirán entre ellos.</p>
-  <input type="text" id="webhooks" size="80" placeholder="https://discord.com/api/webhooks/..., https://discord.com/api/webhooks/..."><br>
+  <p>1. Pega las URLs de los webhooks (separadas por coma):</p>
+  <input type="text" id="webhooks" size="90" placeholder="https://discord.com/api/webhooks/ID1/TOKEN1, https://discord.com/api/webhooks/ID2/TOKEN2"><br>
   
-  <p>2. Selecciona una carpeta completa (solo archivos .html serán enviados, uno por uno).</p>
+  <p>2. Selecciona la carpeta completa:</p>
   <input type="file" id="folder" webkitdirectory directory multiple><br>
   
-  <p>3. Opcional: Tiempo de espera entre envíos (en ms, ej: 1000 para 1 segundo). Para evitar rate limits.</p>
-  <input type="number" id="delay" value="1000" min="0"><br>
+  <p>3. Delay entre envíos (ms) – recomendado 800–2000 para evitar bans/ratelimits:</p>
+  <input type="number" id="delay" value="1200" min="0" step="100"><br>
   
   <button id="startBtn" onclick="iniciarEnvio()">Comenzar Envío</button>
   <button id="stopBtn" onclick="detenerEnvio()" disabled>Detener Envío</button>
   
-  <p id="status"></p>
+  <p id="status">Listo para empezar...</p>
   <p id="error"></p>
 
   <script>
     let enviando = false;
     let archivosPendientes = [];
-    let enviados = new Set(); // Para evitar duplicados (basado en nombre de archivo)
+    let enviados = new Set(); // Evitar duplicados por nombre de archivo
     let indexActual = 0;
     let webhooks = [];
-    let delay = 1000;
+    let delayMs = 1200;
 
-    // Función para iniciar el envío
+    // Extensiones permitidas (solo texto/scripts – agrega/quita según necesites)
+    const extensionesPermitidas = new Set([
+      '.txt', '.lua', '.json', '.js', '.css', '.html', '.log', '.cfg', '.ini', '.xml'
+    ]);
+
     async function iniciarEnvio() {
       const webhooksInput = document.getElementById('webhooks').value.trim();
-      delay = parseInt(document.getElementById('delay').value) || 1000;
+      delayMs = parseInt(document.getElementById('delay').value) || 1200;
       const folderInput = document.getElementById('folder');
 
-      if (!webhooksInput) {
-        mostrarError('Ingresa al menos una URL de webhook.');
-        return;
-      }
-      webhooks = webhooksInput.split(',').map(url => url.trim()).filter(url => url.startsWith('https://discord.com/api/webhooks/'));
+      if (!webhooksInput) return mostrarError('Ingresa al menos un webhook.');
+      webhooks = webhooksInput.split(',').map(u => u.trim()).filter(u => u.startsWith('https://discord.com/api/webhooks/'));
 
-      if (webhooks.length === 0) {
-        mostrarError('URLs de webhooks inválidas.');
-        return;
-      }
+      if (webhooks.length === 0) return mostrarError('Ningún webhook válido.');
+      if (folderInput.files.length === 0) return mostrarError('Selecciona una carpeta.');
 
-      if (folderInput.files.length === 0) {
-        mostrarError('Selecciona una carpeta con archivos.');
-        return;
-      }
+      // Filtrar solo archivos permitidos y no duplicados
+      archivosPendientes = Array.from(folderInput.files).filter(file => {
+        const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+        return extensionesPermitidas.has(ext) && !enviados.has(file.name);
+      });
 
-      // Filtrar solo .html y evitar duplicados
-      archivosPendientes = Array.from(folderInput.files).filter(file => file.name.endsWith('.html') && !enviados.has(file.name));
-      if (archivosPendientes.length === 0) {
-        mostrarError('No hay archivos .html nuevos en la carpeta.');
-        return;
-      }
+      if (archivosPendientes.length === 0) return mostrarError('No hay archivos válidos nuevos (solo txt/lua/etc).');
 
       enviando = true;
       document.getElementById('startBtn').disabled = true;
       document.getElementById('stopBtn').disabled = false;
-      mostrarStatus(`Iniciando envío de ${archivosPendientes.length} archivos...`);
+      mostrarStatus(`Preparando ${archivosPendientes.length} archivos...`);
 
-      // Enviar uno por uno, dividiendo entre webhooks
       indexActual = 0;
       await procesarEnvio();
     }
 
-    // Función para procesar el envío secuencial
     async function procesarEnvio() {
       while (enviando && indexActual < archivosPendientes.length) {
         const file = archivosPendientes[indexActual];
-        const webhookIndex = indexActual % webhooks.length; // Dividir entre webhooks (round-robin)
-        const webhook = webhooks[webhookIndex];
+        const webhookIdx = indexActual % webhooks.length;
+        const webhook = webhooks[webhookIdx];
 
-        mostrarStatus(`Enviando ${file.name} a webhook ${webhookIndex + 1}...`);
+        mostrarStatus(`[${indexActual+1}/${archivosPendientes.length}] Enviando ${file.name} → webhook ${webhookIdx+1}`);
 
         const formData = new FormData();
         formData.append('payload_json', JSON.stringify({
-          content: `Archivo HTML: ${file.name}`
+          content: `**Archivo:** ${file.name}\n**Tamaño:** ${Math.round(file.size / 1024)} KB`
         }));
         formData.append('files[]', file);
 
         try {
-          const response = await fetch(webhook, {
-            method: 'POST',
-            body: formData
-          });
-          if (response.ok) {
-            enviados.add(file.name); // Marcar como enviado para evitar repeticiones
-            mostrarStatus(`${file.name} enviado exitosamente.`);
+          const res = await fetch(webhook, { method: 'POST', body: formData });
+          if (res.ok) {
+            enviados.add(file.name);
+            mostrarStatus(`Éxito: ${file.name} enviado`);
           } else {
-            mostrarError(`Error enviando ${file.name}: ${response.status}`);
+            mostrarError(`Fallo ${res.status} en ${file.name}`);
           }
         } catch (err) {
-          mostrarError(`Error al enviar ${file.name}: ${err.message}`);
+          mostrarError(`Error en ${file.name}: ${err.message}`);
         }
 
         indexActual++;
         if (enviando && indexActual < archivosPendientes.length) {
-          await esperar(delay); // Esperar el tiempo necesario entre envíos
+          await new Promise(r => setTimeout(r, delayMs));
         }
       }
 
       if (enviando) {
-        mostrarStatus('Todos los archivos enviados.');
+        mostrarStatus(`¡Terminado! Enviados ${enviados.size} archivos.`);
       } else {
-        mostrarStatus('Envío detenido.');
+        mostrarStatus('Envío detenido manualmente.');
       }
       resetBotones();
     }
 
-    // Función para detener
     function detenerEnvio() {
       enviando = false;
-      mostrarStatus('Deteniendo envío...');
-      resetBotones();
+      mostrarStatus('Deteniendo... (esperando envío actual)');
     }
 
-    // Resetear botones
     function resetBotones() {
       document.getElementById('startBtn').disabled = false;
       document.getElementById('stopBtn').disabled = true;
     }
 
-    // Esperar tiempo en ms
-    function esperar(ms) {
-      return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
-    // Mostrar status
-    function mostrarStatus(mensaje) {
-      document.getElementById('status').textContent = mensaje;
+    function mostrarStatus(msg) {
+      document.getElementById('status').textContent = msg;
       document.getElementById('error').textContent = '';
     }
 
-    // Mostrar error
-    function mostrarError(mensaje) {
-      document.getElementById('error').textContent = mensaje;
+    function mostrarError(msg) {
+      document.getElementById('error').textContent = msg;
+      document.getElementById('status').textContent = '';
     }
   </script>
 </body>
