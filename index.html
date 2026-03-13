@@ -2,27 +2,34 @@
 session_start();
 
 // ==================== CONFIG ====================
-// ¡Cambia este hash por el tuyo real! (generado con password_hash)
-$ADMIN_HASH_STORED = '$2y$12$TU_HASH_AQUI_NO_COPIES_ESTE_EJEMPLO_CAMBIARLO_OBLIGATORIO';
+$ADMIN_PASSWORD = 'Lynox HUB 777';  // Contraseña en texto plano (solo se usa para generar hash la primera vez)
 
-// Funciones admin
+// Genera el hash SOLO LA PRIMERA VEZ (después comenta las siguientes 3 líneas o bórralas)
+$ADMIN_HASH_STORED = password_hash($ADMIN_PASSWORD, PASSWORD_DEFAULT);
+// echo "<pre>Hash generado (cópialo aquí abajo y comenta las líneas de arriba):\n" . $ADMIN_HASH_STORED . "</pre>";
+// exit;   // Descomenta solo la primera vez para ver el hash
+
+// ← Pega aquí el hash que generó arriba (ejemplo falso, cámbialo por el real):
+$ADMIN_HASH_STORED = '$2y$12$TU_HASH_REAL_AQUI_PEGALO_OBLIGATORIO_1234567890abcdef'; 
+
 function isAdmin() {
     return isset($_SESSION['admin']) && $_SESSION['admin'] === true;
 }
 
-function verifyAdmin($password_attempt) {
+function verifyAdmin($attempt) {
     global $ADMIN_HASH_STORED;
-    return password_verify($password_attempt, $ADMIN_HASH_STORED);
+    return password_verify($attempt, $ADMIN_HASH_STORED);
 }
 
 // Login
 if (isset($_POST['login'])) {
-    if (verifyAdmin($_POST['pass'] ?? '')) {
+    $pass = trim($_POST['pass'] ?? '');
+    if (verifyAdmin($pass)) {
         $_SESSION['admin'] = true;
         header("Location: index.php");
         exit;
     } else {
-        $error = "Contraseña incorrecta";
+        $login_error = "Contraseña incorrecta";
     }
 }
 
@@ -32,17 +39,11 @@ if (isset($_GET['logout'])) {
     exit;
 }
 
-// Crear key
-if (isAdmin() && isset($_POST['create_key'])) {
-    $dias = (int)($_POST['dias'] ?? 0);
-    $expires = ($dias > 0) ? date('Y-m-d H:i:s', strtotime("+$dias days")) : null;
-
-    // Key más legible y bonita
-    $key = strtoupper(substr(md5(uniqid(rand(), true)), 0, 5)) . '-' .
-           strtoupper(substr(md5(uniqid(rand(), true)), 0, 5)) . '-' .
-           strtoupper(substr(md5(uniqid(rand(), true)), 0, 5));
-
+// Conexión y tabla (se crea automáticamente si no existe)
+try {
     $db = new PDO("sqlite:keys.db");
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
     $db->exec("CREATE TABLE IF NOT EXISTS keys_table (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         license_key TEXT UNIQUE NOT NULL,
@@ -51,33 +52,48 @@ if (isAdmin() && isset($_POST['create_key'])) {
         status TEXT DEFAULT 'active',
         used_at DATETIME
     )");
-
-    $stmt = $db->prepare("INSERT INTO keys_table (license_key, expires_at) VALUES (?, ?)");
-    $stmt->execute([$key, $expires]);
-
-    $mensaje_creada = "Key creada correctamente: <strong>$key</strong><br>Válida por " . ($dias > 0 ? "$dias días" : "tiempo ilimitado");
+} catch (Exception $e) {
+    die("Error de base de datos: " . htmlspecialchars($e->getMessage()));
 }
 
-// API para canjear (llamada desde JS o desde Roblox)
+// Crear key (SOLO ADMIN)
+if (isAdmin() && isset($_POST['create_key'])) {
+    $dias = (int)($_POST['dias'] ?? 0);
+    $expires = ($dias > 0) ? date('Y-m-d H:i:s', strtotime("+$dias days")) : null;
+
+    // Key formato legible
+    $key = strtoupper(substr(md5(uniqid()), 0, 5)) . '-' .
+           strtoupper(substr(md5(uniqid()), 0, 5)) . '-' .
+           strtoupper(substr(md5(uniqid()), 0, 5));
+
+    try {
+        $stmt = $db->prepare("INSERT INTO keys_table (license_key, expires_at) VALUES (?, ?)");
+        $stmt->execute([$key, $expires]);
+        $create_success = "¡Key creada! → <strong>$key</strong> (válida " . ($dias > 0 ? "$dias días" : "para siempre") . ")";
+    } catch (Exception $e) {
+        $create_error = "Error al crear la key: " . htmlspecialchars($e->getMessage());
+    }
+}
+
+// API redeem (para cualquiera)
 if (isset($_GET['api']) && $_GET['api'] === 'redeem') {
     header('Content-Type: application/json');
     $key = trim($_POST['key'] ?? '');
 
     if (strlen($key) < 10) {
-        exit(json_encode(['success' => false, 'message' => 'Key inválida']));
+        exit(json_encode(['success' => false, 'message' => 'Key muy corta']));
     }
 
-    $db = new PDO("sqlite:keys.db");
     $stmt = $db->prepare("SELECT * FROM keys_table WHERE license_key = ? LIMIT 1");
     $stmt->execute([$key]);
     $row = $stmt->fetch();
 
     if (!$row) {
-        exit(json_encode(['success' => false, 'message' => 'Key no encontrada']));
+        exit(json_encode(['success' => false, 'message' => 'Key no existe']));
     }
 
     if ($row['status'] !== 'active') {
-        exit(json_encode(['success' => false, 'message' => 'Esta key ya fue usada o no está activa']));
+        exit(json_encode(['success' => false, 'message' => 'Key ya usada o no disponible']));
     }
 
     if ($row['expires_at'] && $row['expires_at'] < date('Y-m-d H:i:s')) {
@@ -85,7 +101,6 @@ if (isset($_GET['api']) && $_GET['api'] === 'redeem') {
         exit(json_encode(['success' => false, 'message' => 'Key expirada']));
     }
 
-    // Marcar como usada
     $db->prepare("UPDATE keys_table SET status = 'used', used_at = datetime('now') WHERE id = ?")
        ->execute([$row['id']]);
 
@@ -95,8 +110,6 @@ if (isset($_GET['api']) && $_GET['api'] === 'redeem') {
         'key' => $key
     ]));
 }
-
-$db = new PDO("sqlite:keys.db");
 ?>
 
 <!DOCTYPE html>
@@ -105,50 +118,19 @@ $db = new PDO("sqlite:keys.db");
 <meta charset="UTF-8">
 <title>Key System</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
-    body {
-        margin:0; padding:0;
-        font-family: Arial, sans-serif;
-        background:#0a0a0a;
-        color:#e0ffe0;
-    }
-    .container { max-width: 1000px; margin: 30px auto; padding: 0 15px; }
-    h1 { color:#00ff9d; text-align:center; margin-bottom:10px; }
-    .card {
-        background:#111;
-        border:1px solid #004d30;
-        border-radius:10px;
-        padding:25px;
-        margin:25px 0;
-        box-shadow:0 0 20px rgba(0,80,50,0.4);
-    }
-    label { display:block; margin:12px 0 6px; color:#00cc88; }
-    input, select, button {
-        width:100%;
-        padding:14px;
-        margin:6px 0;
-        background:#0d1a0d;
-        color:#00ff9d;
-        border:1px solid #004d30;
-        border-radius:6px;
-        font-size:16px;
-    }
-    button {
-        background:#006633;
-        color:white;
-        border:none;
-        font-weight:bold;
-        cursor:pointer;
-    }
+    body { margin:0; font-family:Arial,sans-serif; background:#0a0a0a; color:#e0ffe0; }
+    .container { max-width:960px; margin:30px auto; padding:0 15px; }
+    h1 { color:#00ff9d; text-align:center; }
+    .card { background:#111; border:1px solid #004d30; border-radius:10px; padding:20px; margin:20px 0; }
+    input, select, button { width:100%; padding:12px; margin:8px 0; background:#0d1a0d; color:#00ff9d; border:1px solid #004d30; border-radius:6px; font-size:16px; }
+    button { background:#006633; color:white; border:none; font-weight:bold; cursor:pointer; }
     button:hover { background:#008844; }
-    table { width:100%; border-collapse:collapse; margin-top:15px; }
-    th, td { padding:12px; border:1px solid #222; text-align:left; }
-    th { background:#0d331a; color:#00ff9d; }
-    .success { background:#003300; color:#00ff62; padding:15px; border-radius:8px; margin:15px 0; }
-    .error { background:#330000; color:#ff6666; padding:15px; border-radius:8px; margin:15px 0; }
-    #status { min-height:80px; margin:20px 0; }
-    #my-key { font-size:1.3em; word-break:break-all; }
+    table { width:100%; border-collapse:collapse; margin-top:10px; }
+    th, td { padding:10px; border:1px solid #222; }
+    th { background:#0d331a; }
+    .success { background:#003300; padding:12px; border-radius:6px; margin:15px 0; }
+    .error { background:#330000; padding:12px; border-radius:6px; margin:15px 0; }
 </style>
 </head>
 <body>
@@ -157,65 +139,50 @@ $db = new PDO("sqlite:keys.db");
 
 <?php if (!isAdmin()): ?>
 
-    <div class="card" style="max-width:420px; margin:100px auto;">
-        <h1><i class="fas fa-shield-alt"></i> Acceso Administrador</h1>
-        <?php if(isset($error)): ?>
-            <div class="error"><?php echo $error; ?></div>
-        <?php endif; ?>
-        <form method="post">
-            <input type="password" name="pass" placeholder="Contraseña" required autocomplete="off">
-            <button type="submit" name="login">Ingresar</button>
-        </form>
+    <!-- Vista para usuarios normales -->
+    <div class="card">
+        <h1>Canjear Key</h1>
+        <input type="text" id="key-input" placeholder="Pega tu key aquí...">
+        <button onclick="canjear()">Canjear ahora</button>
+        <div id="resultado"></div>
     </div>
 
 <?php else: ?>
 
-    <h1>Panel de Control de Keys</h1>
+    <!-- Vista ADMIN -->
+    <h1>Panel Admin</h1>
+    <p style="text-align:center;"><a href="?logout" style="color:#ff6666;">Salir</a></p>
 
     <div class="card">
         <h2>Crear nueva key</h2>
         <form method="post">
-            <label>Duración de la key:</label>
-            <select name="dias" required>
-                <option value="0">Ilimitada (siempre activa)</option>
+            <label>Duración:</label>
+            <select name="dias">
+                <option value="0">Ilimitada</option>
                 <option value="1">1 día</option>
                 <option value="3" selected>3 días</option>
                 <option value="7">7 días</option>
-                <option value="14">14 días</option>
                 <option value="30">30 días</option>
             </select>
-
-            <button type="submit" name="create_key">Generar Key</button>
+            <button type="submit" name="create_key">Crear Key</button>
         </form>
 
-        <?php if (isset($mensaje_creada)): ?>
-            <div class="success"><?php echo $mensaje_creada; ?></div>
-        <?php endif; ?>
+        <?php
+        if (isset($create_success)) echo '<div class="success">' . $create_success . '</div>';
+        if (isset($create_error))   echo '<div class="error">'   . $create_error   . '</div>';
+        ?>
     </div>
 
     <div class="card">
-        <h2>Keys existentes</h2>
+        <h2>Lista de keys</h2>
         <table>
-            <tr>
-                <th>Key</th>
-                <th>Creada</th>
-                <th>Expira</th>
-                <th>Estado</th>
-                <th>Canjeada</th>
-            </tr>
+            <tr><th>Key</th><th>Creada</th><th>Expira</th><th>Estado</th><th>Canjeada</th></tr>
             <?php
-            $stmt = $db->query("SELECT * FROM keys_table ORDER BY id DESC LIMIT 50");
-            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                $estado = $row['status'] === 'active' ? '<span style="color:#00ff62">Activa</span>' :
-                          $row['status'] === 'used'   ? '<span style="color:#ffcc00">Usada</span>' :
-                          $row['status'] === 'expired'? '<span style="color:#ff6666">Expirada</span>' : '—';
-                echo "<tr>";
-                echo "<td><code>{$row['license_key']}</code></td>";
-                echo "<td>{$row['created_at']}</td>";
-                echo "<td>" . ($row['expires_at'] ?: '∞') . "</td>";
-                echo "<td>$estado</td>";
-                echo "<td>" . ($row['used_at'] ?: '—') . "</td>";
-                echo "</tr>";
+            $res = $db->query("SELECT * FROM keys_table ORDER BY id DESC LIMIT 50");
+            foreach ($res as $row) {
+                $exp = $row['expires_at'] ?: '∞';
+                $est = $row['status'] === 'active' ? 'Activa' : ucfirst($row['status']);
+                echo "<tr><td><code>{$row['license_key']}</code></td><td>{$row['created_at']}</td><td>$exp</td><td>$est</td><td>" . ($row['used_at'] ?: '—') . "</td></tr>";
             }
             ?>
         </table>
@@ -223,59 +190,34 @@ $db = new PDO("sqlite:keys.db");
 
 <?php endif; ?>
 
-<!-- Sección para usuarios normales (canjear key) -->
-<?php if (!isAdmin()): ?>
-    <div class="card">
-        <h1>Canjear Key</h1>
-        <input type="text" id="key-input" placeholder="Pega tu key aquí (ej: ABCDE-FGHIJ-KLMNO)">
-        <button onclick="canjearKey()">Canjear</button>
-        <div id="status"></div>
-        <div id="my-key-section" style="margin-top:30px;">
-            <strong>Tu key activa:</strong><br>
-            <div id="my-key">— ninguna guardada —</div>
-        </div>
-    </div>
-<?php endif; ?>
-
 </div>
 
 <script>
-function canjearKey() {
-    const key = document.getElementById('key-input').value.trim();
+function canjear() {
+    let key = document.getElementById('key-input').value.trim();
     if (!key) {
-        document.getElementById('status').innerHTML = '<div class="error">Escribe una key primero</div>';
+        document.getElementById('resultado').innerHTML = '<div class="error">Escribe una key</div>';
         return;
     }
 
     fetch('?api=redeem', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
         body: 'key=' + encodeURIComponent(key)
     })
-    .then(res => res.json())
-    .then(data => {
-        const statusDiv = document.getElementById('status');
-        if (data.success) {
-            statusDiv.innerHTML = '<div class="success">' + data.message + '</div>';
-            localStorage.setItem('mi_key_activa', key);
-            mostrarKeyGuardada();
+    .then(r => r.json())
+    .then(d => {
+        let div = document.getElementById('resultado');
+        if (d.success) {
+            div.innerHTML = '<div class="success">' + d.message + '<br>Key: ' + d.key + '</div>';
         } else {
-            statusDiv.innerHTML = '<div class="error">' + data.message + '</div>';
+            div.innerHTML = '<div class="error">' + d.message + '</div>';
         }
     })
-    .catch(err => {
-        document.getElementById('status').innerHTML = '<div class="error">Error al conectar</div>';
+    .catch(() => {
+        document.getElementById('resultado').innerHTML = '<div class="error">No se pudo conectar</div>';
     });
 }
-
-function mostrarKeyGuardada() {
-    const keyGuardada = localStorage.getItem('mi_key_activa');
-    if (keyGuardada) {
-        document.getElementById('my-key').innerHTML = '<strong style="color:#00ff9d">' + keyGuardada + '</strong>';
-    }
-}
-
-window.onload = mostrarKeyGuardada;
 </script>
 
 </body>
