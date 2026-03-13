@@ -1,136 +1,202 @@
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Enviar Scripts y TXT por Webhooks (sin imágenes/videos)</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; background: #1e1e1e; color: #e0e0e0; }
-    input, button { margin: 10px 0; padding: 8px; }
-    button { background: #5865f2; color: white; border: none; cursor: pointer; }
-    button:disabled { background: #3f3f3f; }
-    #status { color: #43b581; font-weight: bold; }
-    #error { color: #f04747; }
-    h2 { color: #fff; }
-  </style>
+<meta charset="UTF-8">
+<title>Lynox Key System</title>
+
+<style>
+
+body{
+background:#0b0b0b;
+color:#00ff9d;
+font-family:Arial;
+text-align:center;
+}
+
+.panel{
+background:#111;
+padding:20px;
+margin:20px auto;
+width:330px;
+border-radius:10px;
+}
+
+input{
+padding:10px;
+margin:5px;
+width:80%;
+}
+
+button{
+padding:10px;
+background:#00ff9d;
+border:none;
+cursor:pointer;
+}
+
+#adminPanel{
+display:none;
+}
+
+#keyPanel{
+display:none;
+}
+
+</style>
 </head>
+
 <body>
-  <h2>Enviar Archivos de Carpeta a Webhooks (solo TXT, LUA, etc. – sin imágenes ni videos)</h2>
-  
-  <p>1. Pega las URLs de los webhooks (separadas por coma):</p>
-  <input type="text" id="webhooks" size="90" placeholder="https://discord.com/api/webhooks/ID1/TOKEN1, https://discord.com/api/webhooks/ID2/TOKEN2"><br>
-  
-  <p>2. Selecciona la carpeta completa:</p>
-  <input type="file" id="folder" webkitdirectory directory multiple><br>
-  
-  <p>3. Delay entre envíos (ms) – recomendado 800–2000 para evitar bans/ratelimits:</p>
-  <input type="number" id="delay" value="1200" min="0" step="100"><br>
-  
-  <button id="startBtn" onclick="iniciarEnvio()">Comenzar Envío</button>
-  <button id="stopBtn" onclick="detenerEnvio()" disabled>Detener Envío</button>
-  
-  <p id="status">Listo para empezar...</p>
-  <p id="error"></p>
 
-  <script>
-    let enviando = false;
-    let archivosPendientes = [];
-    let enviados = new Set(); // Evitar duplicados por nombre de archivo
-    let indexActual = 0;
-    let webhooks = [];
-    let delayMs = 1200;
+<h1>Lynox Key System</h1>
 
-    // Extensiones permitidas (solo texto/scripts – agrega/quita según necesites)
-    const extensionesPermitidas = new Set([
-      '.txt', '.lua', '.json', '.js', '.css', '.html', '.log', '.cfg', '.ini', '.xml'
-    ]);
+<div class="panel" id="keyPanel">
 
-    async function iniciarEnvio() {
-      const webhooksInput = document.getElementById('webhooks').value.trim();
-      delayMs = parseInt(document.getElementById('delay').value) || 1200;
-      const folderInput = document.getElementById('folder');
+<h3>Enter Key</h3>
 
-      if (!webhooksInput) return mostrarError('Ingresa al menos un webhook.');
-      webhooks = webhooksInput.split(',').map(u => u.trim()).filter(u => u.startsWith('https://discord.com/api/webhooks/'));
+<input id="keyInput" placeholder="Enter your key">
+<br>
 
-      if (webhooks.length === 0) return mostrarError('Ningún webhook válido.');
-      if (folderInput.files.length === 0) return mostrarError('Selecciona una carpeta.');
+<button onclick="checkKey()">Verify</button>
 
-      // Filtrar solo archivos permitidos y no duplicados
-      archivosPendientes = Array.from(folderInput.files).filter(file => {
-        const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
-        return extensionesPermitidas.has(ext) && !enviados.has(file.name);
-      });
+<p id="result"></p>
 
-      if (archivosPendientes.length === 0) return mostrarError('No hay archivos válidos nuevos (solo txt/lua/etc).');
+</div>
 
-      enviando = true;
-      document.getElementById('startBtn').disabled = true;
-      document.getElementById('stopBtn').disabled = false;
-      mostrarStatus(`Preparando ${archivosPendientes.length} archivos...`);
 
-      indexActual = 0;
-      await procesarEnvio();
-    }
+<div class="panel">
 
-    async function procesarEnvio() {
-      while (enviando && indexActual < archivosPendientes.length) {
-        const file = archivosPendientes[indexActual];
-        const webhookIdx = indexActual % webhooks.length;
-        const webhook = webhooks[webhookIdx];
+<h3>Admin Login</h3>
 
-        mostrarStatus(`[${indexActual+1}/${archivosPendientes.length}] Enviando ${file.name} → webhook ${webhookIdx+1}`);
+<input type="password" id="adminPass" placeholder="Password">
+<br>
 
-        const formData = new FormData();
-        formData.append('payload_json', JSON.stringify({
-          content: `**Archivo:** ${file.name}\n**Tamaño:** ${Math.round(file.size / 1024)} KB`
-        }));
-        formData.append('files[]', file);
+<button onclick="loginAdmin()">Login</button>
 
-        try {
-          const res = await fetch(webhook, { method: 'POST', body: formData });
-          if (res.ok) {
-            enviados.add(file.name);
-            mostrarStatus(`Éxito: ${file.name} enviado`);
-          } else {
-            mostrarError(`Fallo ${res.status} en ${file.name}`);
-          }
-        } catch (err) {
-          mostrarError(`Error en ${file.name}: ${err.message}`);
-        }
+<p id="loginStatus"></p>
 
-        indexActual++;
-        if (enviando && indexActual < archivosPendientes.length) {
-          await new Promise(r => setTimeout(r, delayMs));
-        }
-      }
+</div>
 
-      if (enviando) {
-        mostrarStatus(`¡Terminado! Enviados ${enviados.size} archivos.`);
-      } else {
-        mostrarStatus('Envío detenido manualmente.');
-      }
-      resetBotones();
-    }
 
-    function detenerEnvio() {
-      enviando = false;
-      mostrarStatus('Deteniendo... (esperando envío actual)');
-    }
+<div class="panel" id="adminPanel">
 
-    function resetBotones() {
-      document.getElementById('startBtn').disabled = false;
-      document.getElementById('stopBtn').disabled = true;
-    }
+<h3>Admin Panel</h3>
 
-    function mostrarStatus(msg) {
-      document.getElementById('status').textContent = msg;
-      document.getElementById('error').textContent = '';
-    }
+<button onclick="createKey()">Generate Key</button>
 
-    function mostrarError(msg) {
-      document.getElementById('error').textContent = msg;
-      document.getElementById('status').textContent = '';
-    }
-  </script>
+<p id="newKey"></p>
+
+<h4>Keys List</h4>
+
+<div id="keyList"></div>
+
+</div>
+
+
+<script>
+
+let adminPassword = "lynoxadmin"
+
+let keys = JSON.parse(localStorage.getItem("keys")) || {}
+
+let deviceAuth = localStorage.getItem("deviceAuth")
+
+if(deviceAuth == "true"){
+document.getElementById("keyPanel").innerHTML = "<h3>✅ Access Granted</h3>"
+}else{
+document.getElementById("keyPanel").style.display = "block"
+}
+
+function saveKeys(){
+localStorage.setItem("keys", JSON.stringify(keys))
+}
+
+function checkKey(){
+
+let key = document.getElementById("keyInput").value
+
+if(keys[key]){
+
+if(keys[key].used == false){
+
+keys[key].used = true
+
+saveKeys()
+
+localStorage.setItem("deviceAuth","true")
+
+document.getElementById("result").innerText = "✅ Key accepted"
+
+setTimeout(()=>{
+location.reload()
+},1000)
+
+}else{
+
+document.getElementById("result").innerText = "❌ Key already used"
+
+}
+
+}else{
+
+document.getElementById("result").innerText = "❌ Invalid key"
+
+}
+
+updateList()
+
+}
+
+function loginAdmin(){
+
+let pass = document.getElementById("adminPass").value
+
+if(pass === adminPassword){
+
+document.getElementById("adminPanel").style.display = "block"
+
+document.getElementById("loginStatus").innerText = "✅ Admin logged"
+
+}else{
+
+document.getElementById("loginStatus").innerText = "❌ Wrong password"
+
+}
+
+}
+
+function createKey(){
+
+let key = "LYNOX-" + Math.random().toString(36).substring(2,8).toUpperCase()
+
+keys[key] = {used:false}
+
+saveKeys()
+
+document.getElementById("newKey").innerText = "New Key: " + key
+
+updateList()
+
+}
+
+function updateList(){
+
+let html = ""
+
+for(let k in keys){
+
+html += k + " - " + (keys[k].used ? "USED ❌" : "FREE ✅") + "<br>"
+
+}
+
+document.getElementById("keyList").innerHTML = html
+
+}
+
+updateList()
+
+</script>
+
 </body>
 </html>
+```
