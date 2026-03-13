@@ -2,48 +2,53 @@
 session_start();
 
 // ==================== CONFIG ====================
-$ADMIN_PASSWORD = 'Lynox HUB 777';  // Contraseña en texto plano (solo se usa para generar hash la primera vez)
+// CONTRASEÑA DEL ADMIN (la usas para entrar)
+$ADMIN_PASSWORD = 'Lynox HUB 777';
 
-// Genera el hash SOLO LA PRIMERA VEZ (después comenta las siguientes 3 líneas o bórralas)
-$ADMIN_HASH_STORED = password_hash($ADMIN_PASSWORD, PASSWORD_DEFAULT);
-// echo "<pre>Hash generado (cópialo aquí abajo y comenta las líneas de arriba):\n" . $ADMIN_HASH_STORED . "</pre>";
-// exit;   // Descomenta solo la primera vez para ver el hash
+// Hash (cámbialo por el que generes la primera vez)
+$ADMIN_HASH = '$2y$12$TU_HASH_AQUI_PEGALO_DESPUES_DE_GENERARLO_abcdef1234567890';
 
-// ← Pega aquí el hash que generó arriba (ejemplo falso, cámbialo por el real):
-$ADMIN_HASH_STORED = '$2y$12$TU_HASH_REAL_AQUI_PEGALO_OBLIGATORIO_1234567890abcdef'; 
+// === SOLO LA PRIMERA VEZ: descomenta estas 3 líneas para generar el hash ===
+// $hash_generado = password_hash($ADMIN_PASSWORD, PASSWORD_DEFAULT);
+// echo "<h2>Hash generado (cópialo y pégalo en \$ADMIN_HASH arriba):</h2><pre>" . $hash_generado . "</pre>";
+// exit;
+// === Después de copiar el hash, comenta o borra las 3 líneas de arriba ===
 
+// Funciones
 function isAdmin() {
     return isset($_SESSION['admin']) && $_SESSION['admin'] === true;
 }
 
-function verifyAdmin($attempt) {
-    global $ADMIN_HASH_STORED;
-    return password_verify($attempt, $ADMIN_HASH_STORED);
+function checkLogin($pass) {
+    global $ADMIN_HASH;
+    return password_verify($pass, $ADMIN_HASH);
 }
 
-// Login
+// Procesar login
 if (isset($_POST['login'])) {
     $pass = trim($_POST['pass'] ?? '');
-    if (verifyAdmin($pass)) {
+    if (checkLogin($pass)) {
         $_SESSION['admin'] = true;
         header("Location: index.php");
         exit;
     } else {
-        $login_error = "Contraseña incorrecta";
+        $error = "Contraseña incorrecta. Intenta de nuevo.";
     }
 }
 
+// Logout
 if (isset($_GET['logout'])) {
     session_destroy();
     header("Location: index.php");
     exit;
 }
 
-// Conexión y tabla (se crea automáticamente si no existe)
+// Conexión SQLite
 try {
     $db = new PDO("sqlite:keys.db");
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
+    
+    // Crear tabla si no existe
     $db->exec("CREATE TABLE IF NOT EXISTS keys_table (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         license_key TEXT UNIQUE NOT NULL,
@@ -53,15 +58,14 @@ try {
         used_at DATETIME
     )");
 } catch (Exception $e) {
-    die("Error de base de datos: " . htmlspecialchars($e->getMessage()));
+    die("Error grave en la base de datos: " . $e->getMessage());
 }
 
 // Crear key (SOLO ADMIN)
 if (isAdmin() && isset($_POST['create_key'])) {
     $dias = (int)($_POST['dias'] ?? 0);
-    $expires = ($dias > 0) ? date('Y-m-d H:i:s', strtotime("+$dias days")) : null;
+    $expires = $dias > 0 ? date('Y-m-d H:i:s', strtotime("+$dias days")) : null;
 
-    // Key formato legible
     $key = strtoupper(substr(md5(uniqid()), 0, 5)) . '-' .
            strtoupper(substr(md5(uniqid()), 0, 5)) . '-' .
            strtoupper(substr(md5(uniqid()), 0, 5));
@@ -69,27 +73,27 @@ if (isAdmin() && isset($_POST['create_key'])) {
     try {
         $stmt = $db->prepare("INSERT INTO keys_table (license_key, expires_at) VALUES (?, ?)");
         $stmt->execute([$key, $expires]);
-        $create_success = "¡Key creada! → <strong>$key</strong> (válida " . ($dias > 0 ? "$dias días" : "para siempre") . ")";
+        $success_msg = "Key creada: <strong>$key</strong> (válida " . ($dias > 0 ? "$dias días" : "siempre") . ")";
     } catch (Exception $e) {
-        $create_error = "Error al crear la key: " . htmlspecialchars($e->getMessage());
+        $error_msg = "No se pudo crear la key: " . $e->getMessage();
     }
 }
 
-// API redeem (para cualquiera)
+// API para canjear (pública)
 if (isset($_GET['api']) && $_GET['api'] === 'redeem') {
     header('Content-Type: application/json');
+    
     $key = trim($_POST['key'] ?? '');
-
-    if (strlen($key) < 10) {
-        exit(json_encode(['success' => false, 'message' => 'Key muy corta']));
+    if (strlen($key) < 12) {
+        exit(json_encode(['success' => false, 'message' => 'Key inválida (muy corta)']));
     }
 
-    $stmt = $db->prepare("SELECT * FROM keys_table WHERE license_key = ? LIMIT 1");
+    $stmt = $db->prepare("SELECT * FROM keys_table WHERE license_key = ?");
     $stmt->execute([$key]);
     $row = $stmt->fetch();
 
     if (!$row) {
-        exit(json_encode(['success' => false, 'message' => 'Key no existe']));
+        exit(json_encode(['success' => false, 'message' => 'Esa key no existe']));
     }
 
     if ($row['status'] !== 'active') {
@@ -119,18 +123,18 @@ if (isset($_GET['api']) && $_GET['api'] === 'redeem') {
 <title>Key System</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-    body { margin:0; font-family:Arial,sans-serif; background:#0a0a0a; color:#e0ffe0; }
-    .container { max-width:960px; margin:30px auto; padding:0 15px; }
-    h1 { color:#00ff9d; text-align:center; }
-    .card { background:#111; border:1px solid #004d30; border-radius:10px; padding:20px; margin:20px 0; }
-    input, select, button { width:100%; padding:12px; margin:8px 0; background:#0d1a0d; color:#00ff9d; border:1px solid #004d30; border-radius:6px; font-size:16px; }
-    button { background:#006633; color:white; border:none; font-weight:bold; cursor:pointer; }
-    button:hover { background:#008844; }
-    table { width:100%; border-collapse:collapse; margin-top:10px; }
-    th, td { padding:10px; border:1px solid #222; }
-    th { background:#0d331a; }
-    .success { background:#003300; padding:12px; border-radius:6px; margin:15px 0; }
-    .error { background:#330000; padding:12px; border-radius:6px; margin:15px 0; }
+    body { margin:0; font-family:Arial,sans-serif; background:#000; color:#0f0; }
+    .container { max-width:900px; margin:40px auto; padding:20px; }
+    h1 { text-align:center; color:#0f0; }
+    .card { background:#111; border:1px solid #0a0; border-radius:8px; padding:25px; margin:20px 0; }
+    input, select, button { width:100%; padding:12px; margin:10px 0; background:#000; color:#0f0; border:1px solid #0a0; border-radius:4px; font-family:monospace; }
+    button { background:#0a3; color:#000; font-weight:bold; cursor:pointer; }
+    button:hover { background:#0f0; }
+    .error { background:#300; padding:12px; border-radius:6px; margin:15px 0; }
+    .success { background:#030; padding:12px; border-radius:6px; margin:15px 0; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:10px; border:1px solid #0a0; text-align:left; }
+    th { background:#0a0; color:#000; }
 </style>
 </head>
 <body>
@@ -139,24 +143,35 @@ if (isset($_GET['api']) && $_GET['api'] === 'redeem') {
 
 <?php if (!isAdmin()): ?>
 
-    <!-- Vista para usuarios normales -->
+    <!-- LOGIN -->
     <div class="card">
-        <h1>Canjear Key</h1>
-        <input type="text" id="key-input" placeholder="Pega tu key aquí...">
-        <button onclick="canjear()">Canjear ahora</button>
+        <h1>Acceso</h1>
+        <?php if (isset($error)): ?>
+            <div class="error"><?php echo $error; ?></div>
+        <?php endif; ?>
+        <form method="post">
+            <input type="password" name="pass" placeholder="Contraseña" required autocomplete="off">
+            <button type="submit" name="login">Entrar</button>
+        </form>
+    </div>
+
+    <!-- CANJEAR KEY (público) -->
+    <div class="card">
+        <h2>Canjear Key</h2>
+        <input type="text" id="key" placeholder="Pega tu key aquí...">
+        <button onclick="redeemKey()">Canjear</button>
         <div id="resultado"></div>
     </div>
 
 <?php else: ?>
 
-    <!-- Vista ADMIN -->
+    <!-- PANEL ADMIN -->
     <h1>Panel Admin</h1>
-    <p style="text-align:center;"><a href="?logout" style="color:#ff6666;">Salir</a></p>
+    <p style="text-align:center;"><a href="?logout" style="color:#f00;">[ Salir ]</a></p>
 
     <div class="card">
         <h2>Crear nueva key</h2>
         <form method="post">
-            <label>Duración:</label>
             <select name="dias">
                 <option value="0">Ilimitada</option>
                 <option value="1">1 día</option>
@@ -164,25 +179,25 @@ if (isset($_GET['api']) && $_GET['api'] === 'redeem') {
                 <option value="7">7 días</option>
                 <option value="30">30 días</option>
             </select>
-            <button type="submit" name="create_key">Crear Key</button>
+            <button type="submit" name="create_key">Crear</button>
         </form>
 
         <?php
-        if (isset($create_success)) echo '<div class="success">' . $create_success . '</div>';
-        if (isset($create_error))   echo '<div class="error">'   . $create_error   . '</div>';
+        if (isset($success_msg)) echo '<div class="success">' . $success_msg . '</div>';
+        if (isset($error_msg))   echo '<div class="error">'   . $error_msg   . '</div>';
         ?>
     </div>
 
     <div class="card">
-        <h2>Lista de keys</h2>
+        <h2>Keys creadas</h2>
         <table>
-            <tr><th>Key</th><th>Creada</th><th>Expira</th><th>Estado</th><th>Canjeada</th></tr>
+            <tr><th>Key</th><th>Creada</th><th>Expira</th><th>Estado</th><th>Usada</th></tr>
             <?php
-            $res = $db->query("SELECT * FROM keys_table ORDER BY id DESC LIMIT 50");
-            foreach ($res as $row) {
+            $res = $db->query("SELECT * FROM keys_table ORDER BY id DESC LIMIT 40");
+            while ($row = $res->fetch()) {
                 $exp = $row['expires_at'] ?: '∞';
-                $est = $row['status'] === 'active' ? 'Activa' : ucfirst($row['status']);
-                echo "<tr><td><code>{$row['license_key']}</code></td><td>{$row['created_at']}</td><td>$exp</td><td>$est</td><td>" . ($row['used_at'] ?: '—') . "</td></tr>";
+                $status = $row['status'] === 'active' ? 'Activa' : ucfirst($row['status']);
+                echo "<tr><td><code>{$row['license_key']}</code></td><td>{$row['created_at']}</td><td>$exp</td><td>$status</td><td>" . ($row['used_at'] ?: '-') . "</td></tr>";
             }
             ?>
         </table>
@@ -193,29 +208,29 @@ if (isset($_GET['api']) && $_GET['api'] === 'redeem') {
 </div>
 
 <script>
-function canjear() {
-    let key = document.getElementById('key-input').value.trim();
+function redeemKey() {
+    const key = document.getElementById('key').value.trim();
     if (!key) {
-        document.getElementById('resultado').innerHTML = '<div class="error">Escribe una key</div>';
+        document.getElementById('resultado').innerHTML = '<div class="error">Escribe una key primero</div>';
         return;
     }
 
     fetch('?api=redeem', {
         method: 'POST',
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'key=' + encodeURIComponent(key)
     })
-    .then(r => r.json())
-    .then(d => {
-        let div = document.getElementById('resultado');
-        if (d.success) {
-            div.innerHTML = '<div class="success">' + d.message + '<br>Key: ' + d.key + '</div>';
+    .then(res => res.json())
+    .then(data => {
+        const div = document.getElementById('resultado');
+        if (data.success) {
+            div.innerHTML = '<div class="success">' + data.message + '<br>Key: ' + data.key + '</div>';
         } else {
-            div.innerHTML = '<div class="error">' + d.message + '</div>';
+            div.innerHTML = '<div class="error">' + data.message + '</div>';
         }
     })
     .catch(() => {
-        document.getElementById('resultado').innerHTML = '<div class="error">No se pudo conectar</div>';
+        document.getElementById('resultado').innerHTML = '<div class="error">Error al conectar</div>';
     });
 }
 </script>
