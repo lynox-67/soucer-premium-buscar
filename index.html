@@ -2,48 +2,28 @@
 session_start();
 
 // ==================== CONFIG ====================
-$admin_pass = 'AdminGDL2026!';           // ¡CAMBIAR ESTO!
-$db_file = 'keys.db';                     // SQLite para no necesitar MySQL en hosting básico
+// ¡Cambia este hash por el tuyo real! (generado con password_hash)
+$ADMIN_HASH_STORED = '$2y$12$TU_HASH_AQUI_NO_COPIES_ESTE_EJEMPLO_CAMBIARLO_OBLIGATORIO';
 
-// Conexión SQLite (fácil de usar)
-try {
-    $db = new PDO("sqlite:$db_file");
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    
-    // Crear tablas si no existen
-    $db->exec("CREATE TABLE IF NOT EXISTS keys_table (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        license_key TEXT UNIQUE NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        expires_at DATETIME,
-        status TEXT DEFAULT 'active',           -- active | used | expired | revoked
-        used_hwid TEXT,
-        used_ip TEXT,
-        used_at DATETIME,
-        used_ua TEXT
-    )");
-    
-    $db->exec("CREATE TABLE IF NOT EXISTS admins_log (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        action TEXT,
-        ip TEXT,
-        at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )");
-} catch (Exception $e) {
-    die("Error DB: " . $e->getMessage());
-}
-
-// ==================== SEGURIDAD BÁSICA ====================
+// Funciones admin
 function isAdmin() {
-    global $admin_pass;
     return isset($_SESSION['admin']) && $_SESSION['admin'] === true;
 }
 
-function logAdmin($action) {
-    global $db;
-    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-    $stmt = $db->prepare("INSERT INTO admins_log (action, ip) VALUES (?, ?)");
-    $stmt->execute([$action, $ip]);
+function verifyAdmin($password_attempt) {
+    global $ADMIN_HASH_STORED;
+    return password_verify($password_attempt, $ADMIN_HASH_STORED);
+}
+
+// Login
+if (isset($_POST['login'])) {
+    if (verifyAdmin($_POST['pass'] ?? '')) {
+        $_SESSION['admin'] = true;
+        header("Location: index.php");
+        exit;
+    } else {
+        $error = "Contraseña incorrecta";
+    }
 }
 
 if (isset($_GET['logout'])) {
@@ -52,167 +32,123 @@ if (isset($_GET['logout'])) {
     exit;
 }
 
-// Login
-if (isset($_POST['login'])) {
-    if ($_POST['pass'] === $admin_pass) {
-        $_SESSION['admin'] = true;
-        logAdmin("Login exitoso");
-        header("Location: index.php");
-        exit;
-    } else {
-        $error = "Contraseña incorrecta";
-        logAdmin("Intento fallido");
-    }
-}
-
-// Crear key (solo admin)
+// Crear key
 if (isAdmin() && isset($_POST['create_key'])) {
-    $key = strtoupper(bin2hex(random_bytes(10))); // 20 chars hex → puedes cambiar formato
-    $key = substr(chunk_split($key, 5, '-'), 0, -1); // ABCDE-FGHIJ-...
-    
-    $expires = !empty($_POST['expires']) ? $_POST['expires'] : null;
-    
+    $dias = (int)($_POST['dias'] ?? 0);
+    $expires = ($dias > 0) ? date('Y-m-d H:i:s', strtotime("+$dias days")) : null;
+
+    // Key más legible y bonita
+    $key = strtoupper(substr(md5(uniqid(rand(), true)), 0, 5)) . '-' .
+           strtoupper(substr(md5(uniqid(rand(), true)), 0, 5)) . '-' .
+           strtoupper(substr(md5(uniqid(rand(), true)), 0, 5));
+
+    $db = new PDO("sqlite:keys.db");
+    $db->exec("CREATE TABLE IF NOT EXISTS keys_table (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        license_key TEXT UNIQUE NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        expires_at DATETIME,
+        status TEXT DEFAULT 'active',
+        used_at DATETIME
+    )");
+
     $stmt = $db->prepare("INSERT INTO keys_table (license_key, expires_at) VALUES (?, ?)");
     $stmt->execute([$key, $expires]);
-    
-    logAdmin("Key creada: $key");
+
+    $mensaje_creada = "Key creada correctamente: <strong>$key</strong><br>Válida por " . ($dias > 0 ? "$dias días" : "tiempo ilimitado");
 }
 
-// ==================== API REDEEM (para Roblox o cualquier script) ====================
+// API para canjear (llamada desde JS o desde Roblox)
 if (isset($_GET['api']) && $_GET['api'] === 'redeem') {
     header('Content-Type: application/json');
-    
-    $key_input = trim($_POST['key'] ?? $_GET['key'] ?? '');
-    if (strlen($key_input) < 8) {
-        exit(json_encode(['success'=>false, 'msg'=>'Key inválida (muy corta)']));
+    $key = trim($_POST['key'] ?? '');
+
+    if (strlen($key) < 10) {
+        exit(json_encode(['success' => false, 'message' => 'Key inválida']));
     }
-    
-    // Rate limit muy básico (IP / 60s)
-    $ip = $_SERVER['REMOTE_ADDR'];
-    $cache_file = sys_get_temp_dir() . '/rl_' . md5($ip);
-    if (file_exists($cache_file) && time() - filemtime($cache_file) < 60) {
-        exit(json_encode(['success'=>false, 'msg'=>'Espera 60 segundos']));
-    }
-    file_put_contents($cache_file, time());
-    
+
+    $db = new PDO("sqlite:keys.db");
     $stmt = $db->prepare("SELECT * FROM keys_table WHERE license_key = ? LIMIT 1");
-    $stmt->execute([$key_input]);
+    $stmt->execute([$key]);
     $row = $stmt->fetch();
-    
+
     if (!$row) {
-        exit(json_encode(['success'=>false, 'msg'=>'Key no existe']));
+        exit(json_encode(['success' => false, 'message' => 'Key no encontrada']));
     }
-    
+
     if ($row['status'] !== 'active') {
-        $m = $row['status'] === 'used' ? 'Ya usada' : ucfirst($row['status']);
-        exit(json_encode(['success'=>false, 'msg'=>$m]));
+        exit(json_encode(['success' => false, 'message' => 'Esta key ya fue usada o no está activa']));
     }
-    
+
     if ($row['expires_at'] && $row['expires_at'] < date('Y-m-d H:i:s')) {
-        $db->prepare("UPDATE keys_table SET status='expired' WHERE id=?")->execute([$row['id']]);
-        exit(json_encode(['success'=>false, 'msg'=>'Expirada']));
+        $db->prepare("UPDATE keys_table SET status = 'expired' WHERE id = ?")->execute([$row['id']]);
+        exit(json_encode(['success' => false, 'message' => 'Key expirada']));
     }
-    
-    // Recolectar HWID aproximado (fingerprint)
-    $hwid_data = $_POST['fingerprint'] ?? 'no enviado';
-    
+
     // Marcar como usada
-    $stmt = $db->prepare("UPDATE keys_table SET 
-        status = 'used',
-        used_hwid = ?,
-        used_ip = ?,
-        used_ua = ?,
-        used_at = datetime('now')
-        WHERE id = ?");
-    
-    $stmt->execute([$hwid_data, $ip, $_SERVER['HTTP_USER_AGENT'] ?? 'unknown', $row['id']]);
-    
+    $db->prepare("UPDATE keys_table SET status = 'used', used_at = datetime('now') WHERE id = ?")
+       ->execute([$row['id']]);
+
     exit(json_encode([
         'success' => true,
-        'msg' => 'Key aceptada. Acceso concedido.',
-        'key' => $key_input,
-        'hwid' => $hwid_data
+        'message' => '¡Key canjeada con éxito!',
+        'key' => $key
     ]));
 }
+
+$db = new PDO("sqlite:keys.db");
 ?>
 
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>🔐 KEY SYSTEM v3 - Guadalajara Style</title>
+<title>Key System</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
-    :root {
-        --bg: #0a0a0a;
-        --green: #00ff41;
-        --green-dark: #00cc33;
-        --red: #ff2a6d;
-        --gray: #1a1a1a;
-        --text: #e0ffe0;
-    }
     body {
         margin:0; padding:0;
-        background: var(--bg);
-        color: var(--text);
-        font-family: 'Courier New', monospace;
-        background-image: linear-gradient(rgba(0,255,65,0.05) 1px, transparent 1px),
-                          linear-gradient(90deg, rgba(0,255,65,0.05) 1px, transparent 1px);
-        background-size: 40px 40px;
-        min-height: 100vh;
+        font-family: Arial, sans-serif;
+        background:#0a0a0a;
+        color:#e0ffe0;
     }
-    .container { max-width: 1100px; margin: 30px auto; padding: 20px; }
-    h1, h2 { text-align:center; color: var(--green); text-shadow: 0 0 10px var(--green); }
-    .glitch { 
-        animation: glitch 2s infinite; 
-        text-shadow: 2px 0 var(--red), -2px 0 var(--green);
-    }
-    @keyframes glitch {
-        0%   { transform: translate(0); }
-        20%  { transform: translate(-2px, 2px); }
-        40%  { transform: translate(2px, -2px); }
-        60%  { transform: translate(-2px, 2px); }
-        80%  { transform: translate(2px, -2px); }
-        100% { transform: translate(0); }
-    }
+    .container { max-width: 1000px; margin: 30px auto; padding: 0 15px; }
+    h1 { color:#00ff9d; text-align:center; margin-bottom:10px; }
     .card {
-        background: rgba(20,20,20,0.7);
-        border: 1px solid var(--green);
-        border-radius: 8px;
-        padding: 20px;
-        margin: 20px 0;
-        box-shadow: 0 0 20px rgba(0,255,65,0.2);
+        background:#111;
+        border:1px solid #004d30;
+        border-radius:10px;
+        padding:25px;
+        margin:25px 0;
+        box-shadow:0 0 20px rgba(0,80,50,0.4);
     }
-    input, button {
-        padding: 12px;
-        margin: 8px 0;
-        width: 100%;
-        background: #111;
-        border: 1px solid var(--green);
-        color: var(--green);
-        font-family: inherit;
-        border-radius: 4px;
+    label { display:block; margin:12px 0 6px; color:#00cc88; }
+    input, select, button {
+        width:100%;
+        padding:14px;
+        margin:6px 0;
+        background:#0d1a0d;
+        color:#00ff9d;
+        border:1px solid #004d30;
+        border-radius:6px;
+        font-size:16px;
     }
     button {
-        background: var(--green-dark);
-        color: black;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.3s;
+        background:#006633;
+        color:white;
+        border:none;
+        font-weight:bold;
+        cursor:pointer;
     }
-    button:hover { box-shadow: 0 0 15px var(--green); transform: scale(1.02); }
-    table {
-        width:100%; border-collapse: collapse; margin:20px 0;
-        background: rgba(0,0,0,0.5);
-    }
-    th, td { padding:12px; border:1px solid #333; text-align:left; }
-    th { background: #0f2f0f; color:var(--green); }
-    .status-active  { color: var(--green); font-weight:bold; }
-    .status-used    { color: #ffcc00; }
-    .status-expired { color: var(--red); }
-    .login-box { max-width:400px; margin:100px auto; }
-    .hidden { display:none; }
+    button:hover { background:#008844; }
+    table { width:100%; border-collapse:collapse; margin-top:15px; }
+    th, td { padding:12px; border:1px solid #222; text-align:left; }
+    th { background:#0d331a; color:#00ff9d; }
+    .success { background:#003300; color:#00ff62; padding:15px; border-radius:8px; margin:15px 0; }
+    .error { background:#330000; color:#ff6666; padding:15px; border-radius:8px; margin:15px 0; }
+    #status { min-height:80px; margin:20px 0; }
+    #my-key { font-size:1.3em; word-break:break-all; }
 </style>
 </head>
 <body>
@@ -221,52 +157,64 @@ if (isset($_GET['api']) && $_GET['api'] === 'redeem') {
 
 <?php if (!isAdmin()): ?>
 
-    <div class="login-box card">
-        <h1 class="glitch"><i class="fas fa-skull-crossbones"></i> ADMIN ACCESS</h1>
-        <?php if(isset($error)) echo "<p style='color:var(--red);text-align:center;'>$error</p>"; ?>
+    <div class="card" style="max-width:420px; margin:100px auto;">
+        <h1><i class="fas fa-shield-alt"></i> Acceso Administrador</h1>
+        <?php if(isset($error)): ?>
+            <div class="error"><?php echo $error; ?></div>
+        <?php endif; ?>
         <form method="post">
-            <input type="password" name="pass" placeholder="CONTRASEÑA" required autocomplete="off">
-            <button type="submit" name="login"><i class="fas fa-terminal"></i> INICIAR</button>
+            <input type="password" name="pass" placeholder="Contraseña" required autocomplete="off">
+            <button type="submit" name="login">Ingresar</button>
         </form>
     </div>
 
 <?php else: ?>
 
-    <h1 class="glitch">KEY SYSTEM <span style="color:#ff2a6d;">v3</span> – Guadalajara 2026</h1>
-    <p style="text-align:center; color:#888;">Logged as ADMIN • <a href="?logout" style="color:var(--red);">Logout</a></p>
+    <h1>Panel de Control de Keys</h1>
 
     <div class="card">
-        <h2><i class="fas fa-key"></i> Generar Nueva Key</h2>
+        <h2>Crear nueva key</h2>
         <form method="post">
-            <input type="datetime-local" name="expires" placeholder="Expiración (opcional)">
-            <button type="submit" name="create_key"><i class="fas fa-plus-circle"></i> CREAR KEY</button>
+            <label>Duración de la key:</label>
+            <select name="dias" required>
+                <option value="0">Ilimitada (siempre activa)</option>
+                <option value="1">1 día</option>
+                <option value="3" selected>3 días</option>
+                <option value="7">7 días</option>
+                <option value="14">14 días</option>
+                <option value="30">30 días</option>
+            </select>
+
+            <button type="submit" name="create_key">Generar Key</button>
         </form>
+
+        <?php if (isset($mensaje_creada)): ?>
+            <div class="success"><?php echo $mensaje_creada; ?></div>
+        <?php endif; ?>
     </div>
 
     <div class="card">
-        <h2><i class="fas fa-database"></i> Keys Activas / Historial</h2>
+        <h2>Keys existentes</h2>
         <table>
             <tr>
                 <th>Key</th>
                 <th>Creada</th>
                 <th>Expira</th>
                 <th>Estado</th>
-                <th>HWID / Fingerprint</th>
-                <th>IP</th>
-                <th>Usada</th>
+                <th>Canjeada</th>
             </tr>
             <?php
             $stmt = $db->query("SELECT * FROM keys_table ORDER BY id DESC LIMIT 50");
-            while ($row = $stmt->fetch()) {
-                $status_class = "status-".$row['status'];
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $estado = $row['status'] === 'active' ? '<span style="color:#00ff62">Activa</span>' :
+                          $row['status'] === 'used'   ? '<span style="color:#ffcc00">Usada</span>' :
+                          $row['status'] === 'expired'? '<span style="color:#ff6666">Expirada</span>' : '—';
                 echo "<tr>";
                 echo "<td><code>{$row['license_key']}</code></td>";
                 echo "<td>{$row['created_at']}</td>";
                 echo "<td>" . ($row['expires_at'] ?: '∞') . "</td>";
-                echo "<td class='$status_class'>" . strtoupper($row['status']) . "</td>";
-                echo "<td><small>" . htmlspecialchars(substr($row['used_hwid'] ?: '-', 0, 24)) . "...</small></td>";
-                echo "<td>" . htmlspecialchars($row['used_ip'] ?: '-') . "</td>";
-                echo "<td>" . ($row['used_at'] ?: '-') . "</td>";
+                echo "<td>$estado</td>";
+                echo "<td>" . ($row['used_at'] ?: '—') . "</td>";
                 echo "</tr>";
             }
             ?>
@@ -275,65 +223,59 @@ if (isset($_GET['api']) && $_GET['api'] === 'redeem') {
 
 <?php endif; ?>
 
+<!-- Sección para usuarios normales (canjear key) -->
+<?php if (!isAdmin()): ?>
+    <div class="card">
+        <h1>Canjear Key</h1>
+        <input type="text" id="key-input" placeholder="Pega tu key aquí (ej: ABCDE-FGHIJ-KLMNO)">
+        <button onclick="canjearKey()">Canjear</button>
+        <div id="status"></div>
+        <div id="my-key-section" style="margin-top:30px;">
+            <strong>Tu key activa:</strong><br>
+            <div id="my-key">— ninguna guardada —</div>
+        </div>
+    </div>
+<?php endif; ?>
+
 </div>
 
-<!-- ==================== JS para Fingerprint (HWID aproximado) ==================== -->
 <script>
-// Enviar fingerprint al canjear (puedes llamarlo desde tu script Lua via HttpService)
-async function getFingerprint() {
-    try {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        ctx.textBaseline = "top";
-        ctx.font = "14px 'Arial'";
-        ctx.fillStyle = "#f60";
-        ctx.fillRect(125,1,62,20);
-        ctx.fillStyle = "#069";
-        ctx.fillText("Hello, key system 2026", 2,15);
-        ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
-        ctx.fillText("Hello, key system 2026", 4,17);
-        const canvasHash = canvas.toDataURL();
+function canjearKey() {
+    const key = document.getElementById('key-input').value.trim();
+    if (!key) {
+        document.getElementById('status').innerHTML = '<div class="error">Escribe una key primero</div>';
+        return;
+    }
 
-        const audioCtx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 5000, 44100);
-        const oscillator = audioCtx.createOscillator();
-        oscillator.type = 'triangle';
-        oscillator.frequency.value = 10000;
-        const compressor = audioCtx.createDynamicsCompressor();
-        oscillator.connect(compressor);
-        compressor.connect(audioCtx.destination);
-        oscillator.start(0);
-        const audioBuffer = await audioCtx.startRendering();
-        const audioData = audioBuffer.getChannelData(0);
-        let audioHash = 0;
-        for (let i = 0; i < audioData.length; i += 100) {
-            audioHash += audioData[i] * 1000;
+    fetch('?api=redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'key=' + encodeURIComponent(key)
+    })
+    .then(res => res.json())
+    .then(data => {
+        const statusDiv = document.getElementById('status');
+        if (data.success) {
+            statusDiv.innerHTML = '<div class="success">' + data.message + '</div>';
+            localStorage.setItem('mi_key_activa', key);
+            mostrarKeyGuardada();
+        } else {
+            statusDiv.innerHTML = '<div class="error">' + data.message + '</div>';
         }
+    })
+    .catch(err => {
+        document.getElementById('status').innerHTML = '<div class="error">Error al conectar</div>';
+    });
+}
 
-        const gl = document.createElement('canvas').getContext('webgl');
-        const debugInfo = gl?.getExtension('WEBGL_debug_renderer_info');
-        const vendor = debugInfo ? gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) : 'unknown';
-        const renderer = debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : 'unknown';
-
-        const data = {
-            canvas: canvasHash.substring(0,80),
-            audio: audioHash.toString(36).substring(0,12),
-            webglVendor: vendor,
-            webglRenderer: renderer,
-            ua: navigator.userAgent,
-            lang: navigator.language,
-            tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            screen: `${screen.width}x${screen.height}`,
-            // Puedes agregar más: plugins, fonts via JS, etc.
-        };
-
-        return btoa(JSON.stringify(data)).substring(0,80); // base64 corto
-    } catch(e) {
-        return 'error_' + Math.random().toString(36).substring(2,10);
+function mostrarKeyGuardada() {
+    const keyGuardada = localStorage.getItem('mi_key_activa');
+    if (keyGuardada) {
+        document.getElementById('my-key').innerHTML = '<strong style="color:#00ff9d">' + keyGuardada + '</strong>';
     }
 }
 
-// Ejemplo: si quieres probar en consola
-// getFingerprint().then(fp => console.log("Tu HWID approx:", fp));
+window.onload = mostrarKeyGuardada;
 </script>
 
 </body>
