@@ -1,202 +1,340 @@
-```html
+<?php
+session_start();
+
+// ==================== CONFIG ====================
+$admin_pass = 'AdminGDL2026!';           // ¡CAMBIAR ESTO!
+$db_file = 'keys.db';                     // SQLite para no necesitar MySQL en hosting básico
+
+// Conexión SQLite (fácil de usar)
+try {
+    $db = new PDO("sqlite:$db_file");
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    
+    // Crear tablas si no existen
+    $db->exec("CREATE TABLE IF NOT EXISTS keys_table (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        license_key TEXT UNIQUE NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        expires_at DATETIME,
+        status TEXT DEFAULT 'active',           -- active | used | expired | revoked
+        used_hwid TEXT,
+        used_ip TEXT,
+        used_at DATETIME,
+        used_ua TEXT
+    )");
+    
+    $db->exec("CREATE TABLE IF NOT EXISTS admins_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        action TEXT,
+        ip TEXT,
+        at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )");
+} catch (Exception $e) {
+    die("Error DB: " . $e->getMessage());
+}
+
+// ==================== SEGURIDAD BÁSICA ====================
+function isAdmin() {
+    global $admin_pass;
+    return isset($_SESSION['admin']) && $_SESSION['admin'] === true;
+}
+
+function logAdmin($action) {
+    global $db;
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $stmt = $db->prepare("INSERT INTO admins_log (action, ip) VALUES (?, ?)");
+    $stmt->execute([$action, $ip]);
+}
+
+if (isset($_GET['logout'])) {
+    session_destroy();
+    header("Location: index.php");
+    exit;
+}
+
+// Login
+if (isset($_POST['login'])) {
+    if ($_POST['pass'] === $admin_pass) {
+        $_SESSION['admin'] = true;
+        logAdmin("Login exitoso");
+        header("Location: index.php");
+        exit;
+    } else {
+        $error = "Contraseña incorrecta";
+        logAdmin("Intento fallido");
+    }
+}
+
+// Crear key (solo admin)
+if (isAdmin() && isset($_POST['create_key'])) {
+    $key = strtoupper(bin2hex(random_bytes(10))); // 20 chars hex → puedes cambiar formato
+    $key = substr(chunk_split($key, 5, '-'), 0, -1); // ABCDE-FGHIJ-...
+    
+    $expires = !empty($_POST['expires']) ? $_POST['expires'] : null;
+    
+    $stmt = $db->prepare("INSERT INTO keys_table (license_key, expires_at) VALUES (?, ?)");
+    $stmt->execute([$key, $expires]);
+    
+    logAdmin("Key creada: $key");
+}
+
+// ==================== API REDEEM (para Roblox o cualquier script) ====================
+if (isset($_GET['api']) && $_GET['api'] === 'redeem') {
+    header('Content-Type: application/json');
+    
+    $key_input = trim($_POST['key'] ?? $_GET['key'] ?? '');
+    if (strlen($key_input) < 8) {
+        exit(json_encode(['success'=>false, 'msg'=>'Key inválida (muy corta)']));
+    }
+    
+    // Rate limit muy básico (IP / 60s)
+    $ip = $_SERVER['REMOTE_ADDR'];
+    $cache_file = sys_get_temp_dir() . '/rl_' . md5($ip);
+    if (file_exists($cache_file) && time() - filemtime($cache_file) < 60) {
+        exit(json_encode(['success'=>false, 'msg'=>'Espera 60 segundos']));
+    }
+    file_put_contents($cache_file, time());
+    
+    $stmt = $db->prepare("SELECT * FROM keys_table WHERE license_key = ? LIMIT 1");
+    $stmt->execute([$key_input]);
+    $row = $stmt->fetch();
+    
+    if (!$row) {
+        exit(json_encode(['success'=>false, 'msg'=>'Key no existe']));
+    }
+    
+    if ($row['status'] !== 'active') {
+        $m = $row['status'] === 'used' ? 'Ya usada' : ucfirst($row['status']);
+        exit(json_encode(['success'=>false, 'msg'=>$m]));
+    }
+    
+    if ($row['expires_at'] && $row['expires_at'] < date('Y-m-d H:i:s')) {
+        $db->prepare("UPDATE keys_table SET status='expired' WHERE id=?")->execute([$row['id']]);
+        exit(json_encode(['success'=>false, 'msg'=>'Expirada']));
+    }
+    
+    // Recolectar HWID aproximado (fingerprint)
+    $hwid_data = $_POST['fingerprint'] ?? 'no enviado';
+    
+    // Marcar como usada
+    $stmt = $db->prepare("UPDATE keys_table SET 
+        status = 'used',
+        used_hwid = ?,
+        used_ip = ?,
+        used_ua = ?,
+        used_at = datetime('now')
+        WHERE id = ?");
+    
+    $stmt->execute([$hwid_data, $ip, $_SERVER['HTTP_USER_AGENT'] ?? 'unknown', $row['id']]);
+    
+    exit(json_encode([
+        'success' => true,
+        'msg' => 'Key aceptada. Acceso concedido.',
+        'key' => $key_input,
+        'hwid' => $hwid_data
+    ]));
+}
+?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Lynox Key System</title>
-
+<title>🔐 KEY SYSTEM v3 - Guadalajara Style</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
-
-body{
-background:#0b0b0b;
-color:#00ff9d;
-font-family:Arial;
-text-align:center;
-}
-
-.panel{
-background:#111;
-padding:20px;
-margin:20px auto;
-width:330px;
-border-radius:10px;
-}
-
-input{
-padding:10px;
-margin:5px;
-width:80%;
-}
-
-button{
-padding:10px;
-background:#00ff9d;
-border:none;
-cursor:pointer;
-}
-
-#adminPanel{
-display:none;
-}
-
-#keyPanel{
-display:none;
-}
-
+    :root {
+        --bg: #0a0a0a;
+        --green: #00ff41;
+        --green-dark: #00cc33;
+        --red: #ff2a6d;
+        --gray: #1a1a1a;
+        --text: #e0ffe0;
+    }
+    body {
+        margin:0; padding:0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'Courier New', monospace;
+        background-image: linear-gradient(rgba(0,255,65,0.05) 1px, transparent 1px),
+                          linear-gradient(90deg, rgba(0,255,65,0.05) 1px, transparent 1px);
+        background-size: 40px 40px;
+        min-height: 100vh;
+    }
+    .container { max-width: 1100px; margin: 30px auto; padding: 20px; }
+    h1, h2 { text-align:center; color: var(--green); text-shadow: 0 0 10px var(--green); }
+    .glitch { 
+        animation: glitch 2s infinite; 
+        text-shadow: 2px 0 var(--red), -2px 0 var(--green);
+    }
+    @keyframes glitch {
+        0%   { transform: translate(0); }
+        20%  { transform: translate(-2px, 2px); }
+        40%  { transform: translate(2px, -2px); }
+        60%  { transform: translate(-2px, 2px); }
+        80%  { transform: translate(2px, -2px); }
+        100% { transform: translate(0); }
+    }
+    .card {
+        background: rgba(20,20,20,0.7);
+        border: 1px solid var(--green);
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+        box-shadow: 0 0 20px rgba(0,255,65,0.2);
+    }
+    input, button {
+        padding: 12px;
+        margin: 8px 0;
+        width: 100%;
+        background: #111;
+        border: 1px solid var(--green);
+        color: var(--green);
+        font-family: inherit;
+        border-radius: 4px;
+    }
+    button {
+        background: var(--green-dark);
+        color: black;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    button:hover { box-shadow: 0 0 15px var(--green); transform: scale(1.02); }
+    table {
+        width:100%; border-collapse: collapse; margin:20px 0;
+        background: rgba(0,0,0,0.5);
+    }
+    th, td { padding:12px; border:1px solid #333; text-align:left; }
+    th { background: #0f2f0f; color:var(--green); }
+    .status-active  { color: var(--green); font-weight:bold; }
+    .status-used    { color: #ffcc00; }
+    .status-expired { color: var(--red); }
+    .login-box { max-width:400px; margin:100px auto; }
+    .hidden { display:none; }
 </style>
 </head>
-
 <body>
 
-<h1>Lynox Key System</h1>
+<div class="container">
 
-<div class="panel" id="keyPanel">
+<?php if (!isAdmin()): ?>
 
-<h3>Enter Key</h3>
+    <div class="login-box card">
+        <h1 class="glitch"><i class="fas fa-skull-crossbones"></i> ADMIN ACCESS</h1>
+        <?php if(isset($error)) echo "<p style='color:var(--red);text-align:center;'>$error</p>"; ?>
+        <form method="post">
+            <input type="password" name="pass" placeholder="CONTRASEÑA" required autocomplete="off">
+            <button type="submit" name="login"><i class="fas fa-terminal"></i> INICIAR</button>
+        </form>
+    </div>
 
-<input id="keyInput" placeholder="Enter your key">
-<br>
+<?php else: ?>
 
-<button onclick="checkKey()">Verify</button>
+    <h1 class="glitch">KEY SYSTEM <span style="color:#ff2a6d;">v3</span> – Guadalajara 2026</h1>
+    <p style="text-align:center; color:#888;">Logged as ADMIN • <a href="?logout" style="color:var(--red);">Logout</a></p>
 
-<p id="result"></p>
+    <div class="card">
+        <h2><i class="fas fa-key"></i> Generar Nueva Key</h2>
+        <form method="post">
+            <input type="datetime-local" name="expires" placeholder="Expiración (opcional)">
+            <button type="submit" name="create_key"><i class="fas fa-plus-circle"></i> CREAR KEY</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2><i class="fas fa-database"></i> Keys Activas / Historial</h2>
+        <table>
+            <tr>
+                <th>Key</th>
+                <th>Creada</th>
+                <th>Expira</th>
+                <th>Estado</th>
+                <th>HWID / Fingerprint</th>
+                <th>IP</th>
+                <th>Usada</th>
+            </tr>
+            <?php
+            $stmt = $db->query("SELECT * FROM keys_table ORDER BY id DESC LIMIT 50");
+            while ($row = $stmt->fetch()) {
+                $status_class = "status-".$row['status'];
+                echo "<tr>";
+                echo "<td><code>{$row['license_key']}</code></td>";
+                echo "<td>{$row['created_at']}</td>";
+                echo "<td>" . ($row['expires_at'] ?: '∞') . "</td>";
+                echo "<td class='$status_class'>" . strtoupper($row['status']) . "</td>";
+                echo "<td><small>" . htmlspecialchars(substr($row['used_hwid'] ?: '-', 0, 24)) . "...</small></td>";
+                echo "<td>" . htmlspecialchars($row['used_ip'] ?: '-') . "</td>";
+                echo "<td>" . ($row['used_at'] ?: '-') . "</td>";
+                echo "</tr>";
+            }
+            ?>
+        </table>
+    </div>
+
+<?php endif; ?>
 
 </div>
 
-
-<div class="panel">
-
-<h3>Admin Login</h3>
-
-<input type="password" id="adminPass" placeholder="Password">
-<br>
-
-<button onclick="loginAdmin()">Login</button>
-
-<p id="loginStatus"></p>
-
-</div>
-
-
-<div class="panel" id="adminPanel">
-
-<h3>Admin Panel</h3>
-
-<button onclick="createKey()">Generate Key</button>
-
-<p id="newKey"></p>
-
-<h4>Keys List</h4>
-
-<div id="keyList"></div>
-
-</div>
-
-
+<!-- ==================== JS para Fingerprint (HWID aproximado) ==================== -->
 <script>
+// Enviar fingerprint al canjear (puedes llamarlo desde tu script Lua via HttpService)
+async function getFingerprint() {
+    try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        ctx.textBaseline = "top";
+        ctx.font = "14px 'Arial'";
+        ctx.fillStyle = "#f60";
+        ctx.fillRect(125,1,62,20);
+        ctx.fillStyle = "#069";
+        ctx.fillText("Hello, key system 2026", 2,15);
+        ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
+        ctx.fillText("Hello, key system 2026", 4,17);
+        const canvasHash = canvas.toDataURL();
 
-let adminPassword = "lynoxadmin"
+        const audioCtx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 5000, 44100);
+        const oscillator = audioCtx.createOscillator();
+        oscillator.type = 'triangle';
+        oscillator.frequency.value = 10000;
+        const compressor = audioCtx.createDynamicsCompressor();
+        oscillator.connect(compressor);
+        compressor.connect(audioCtx.destination);
+        oscillator.start(0);
+        const audioBuffer = await audioCtx.startRendering();
+        const audioData = audioBuffer.getChannelData(0);
+        let audioHash = 0;
+        for (let i = 0; i < audioData.length; i += 100) {
+            audioHash += audioData[i] * 1000;
+        }
 
-let keys = JSON.parse(localStorage.getItem("keys")) || {}
+        const gl = document.createElement('canvas').getContext('webgl');
+        const debugInfo = gl?.getExtension('WEBGL_debug_renderer_info');
+        const vendor = debugInfo ? gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) : 'unknown';
+        const renderer = debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : 'unknown';
 
-let deviceAuth = localStorage.getItem("deviceAuth")
+        const data = {
+            canvas: canvasHash.substring(0,80),
+            audio: audioHash.toString(36).substring(0,12),
+            webglVendor: vendor,
+            webglRenderer: renderer,
+            ua: navigator.userAgent,
+            lang: navigator.language,
+            tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            screen: `${screen.width}x${screen.height}`,
+            // Puedes agregar más: plugins, fonts via JS, etc.
+        };
 
-if(deviceAuth == "true"){
-document.getElementById("keyPanel").innerHTML = "<h3>✅ Access Granted</h3>"
-}else{
-document.getElementById("keyPanel").style.display = "block"
+        return btoa(JSON.stringify(data)).substring(0,80); // base64 corto
+    } catch(e) {
+        return 'error_' + Math.random().toString(36).substring(2,10);
+    }
 }
 
-function saveKeys(){
-localStorage.setItem("keys", JSON.stringify(keys))
-}
-
-function checkKey(){
-
-let key = document.getElementById("keyInput").value
-
-if(keys[key]){
-
-if(keys[key].used == false){
-
-keys[key].used = true
-
-saveKeys()
-
-localStorage.setItem("deviceAuth","true")
-
-document.getElementById("result").innerText = "✅ Key accepted"
-
-setTimeout(()=>{
-location.reload()
-},1000)
-
-}else{
-
-document.getElementById("result").innerText = "❌ Key already used"
-
-}
-
-}else{
-
-document.getElementById("result").innerText = "❌ Invalid key"
-
-}
-
-updateList()
-
-}
-
-function loginAdmin(){
-
-let pass = document.getElementById("adminPass").value
-
-if(pass === adminPassword){
-
-document.getElementById("adminPanel").style.display = "block"
-
-document.getElementById("loginStatus").innerText = "✅ Admin logged"
-
-}else{
-
-document.getElementById("loginStatus").innerText = "❌ Wrong password"
-
-}
-
-}
-
-function createKey(){
-
-let key = "LYNOX-" + Math.random().toString(36).substring(2,8).toUpperCase()
-
-keys[key] = {used:false}
-
-saveKeys()
-
-document.getElementById("newKey").innerText = "New Key: " + key
-
-updateList()
-
-}
-
-function updateList(){
-
-let html = ""
-
-for(let k in keys){
-
-html += k + " - " + (keys[k].used ? "USED ❌" : "FREE ✅") + "<br>"
-
-}
-
-document.getElementById("keyList").innerHTML = html
-
-}
-
-updateList()
-
+// Ejemplo: si quieres probar en consola
+// getFingerprint().then(fp => console.log("Tu HWID approx:", fp));
 </script>
 
 </body>
 </html>
-```
