@@ -3,179 +3,291 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LYNOX x GAEL • OBFUSCATOR EXTREMO</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>BY LYNOX X GAEL v1 - OBFUSCATOR</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&amp;family=Roboto+Mono:wght@400;700&amp;display=swap');
-        body { background: linear-gradient(135deg, #0a0a0a, #1a1a2e); }
-        .gold { color: #ffd700; text-shadow: 0 0 20px #ffd700; }
-        .card { background: rgba(15, 23, 42, 0.95); border: 2px solid #ffd700; }
+        :root {
+            --bg: #000;
+            --green: #0f0;
+            --green-dim: #003300;
+            --text: #00ff00;
+            --error: #ff0044;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'VT323', monospace;
+            font-size: 1.4rem;
+            line-height: 1.5;
+            min-height: 100vh;
+            padding: 20px;
+            image-rendering: pixelated;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        h1 {
+            font-size: 4.2rem;
+            text-shadow: 0 0 10px var(--green), 0 0 20px var(--green);
+            letter-spacing: 8px;
+            animation: glitch 4s infinite;
+        }
+        .subtitle {
+            font-size: 1.8rem;
+            color: #0a0;
+            margin-top: 10px;
+        }
+        .terminal {
+            background: #001100;
+            border: 2px solid var(--green);
+            border-radius: 0;
+            padding: 25px;
+            box-shadow: 0 0 30px rgba(0,255,0,0.15);
+            position: relative;
+            overflow: hidden;
+        }
+        .terminal::before {
+            content: ">";
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            color: var(--green);
+            font-size: 1.6rem;
+        }
+        .drop-area {
+            border: 3px dashed var(--green-dim);
+            border-radius: 0;
+            padding: 80px 40px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+            margin: 30px 0;
+            background: rgba(0,20,0,0.4);
+        }
+        .drop-area:hover,
+        .drop-area.active {
+            border-color: var(--green);
+            background: rgba(0,40,0,0.6);
+            box-shadow: 0 0 25px rgba(0,255,0,0.25);
+        }
+        .drop-area p {
+            font-size: 2.2rem;
+            margin: 15px 0;
+        }
+        .info {
+            font-size: 1.5rem;
+            color: #0c0;
+            margin: 20px 0;
+        }
+        .status {
+            display: none;
+            font-size: 2rem;
+            margin: 40px 0;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+        .success { color: var(--green); }
+        .error   { color: var(--error); text-shadow: 0 0 8px #f00; }
+        input[type="file"] { display: none; }
+        .btn {
+            background: #002200;
+            color: var(--green);
+            border: 2px solid var(--green);
+            padding: 15px 40px;
+            font-size: 1.8rem;
+            cursor: pointer;
+            margin: 20px auto;
+            display: block;
+            transition: all 0.2s;
+        }
+        .btn:hover {
+            background: var(--green);
+            color: #000;
+            box-shadow: 0 0 20px var(--green);
+        }
+
+        @keyframes glitch {
+            0% { text-shadow: 2px 0 #0f0, -2px 0 #f0f; }
+            10% { text-shadow: -2px 0 #0f0, 2px 0 #f0f; }
+            20% { text-shadow: 0 0 #0f0; }
+            100% { text-shadow: 0 0 #0f0; }
+        }
+
+        .scanline {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, transparent, rgba(0,255,0,0.08), transparent);
+            pointer-events: none;
+            animation: scan 8s linear infinite;
+        }
+        @keyframes scan {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
     </style>
 </head>
-<body class="min-h-screen text-white font-mono">
-    <div class="max-w-3xl mx-auto pt-12 pb-20">
-        <div class="text-center mb-10">
-            <h1 class="text-6xl font-bold tracking-widest gold mb-2">LYNOX<span class="text-white">x</span>GAEL</h1>
-            <p class="text-xl text-amber-400">OBFUSCATOR EXTREMO • FULL SEGURO • OFFLINE</p>
-            <p class="text-xs text-gray-500 mt-2">100% LOCAL • NADA SE ENVÍA • NUNCA INTERFIERE CON TU SCRIPT</p>
+<body>
+
+<div class="container">
+    <header>
+        <h1>BY LYNOX X GAEL v1</h1>
+        <div class="subtitle">LUA OBFUSCATOR [OFFLINE]</div>
+    </header>
+
+    <div class="terminal">
+        <div class="scanline"></div>
+
+        <div class="drop-area" id="dropArea">
+            <p>[ ARRASTRA TU ARCHIVO AQUÍ ]</p>
+            <p>o</p>
+            <button class="btn" id="selectBtn">SELECCIONAR ARCHIVO (.lua .txt)</button>
+            <input type="file" id="fileInput" accept=".lua,.txt,text/plain">
         </div>
 
-        <div class="card rounded-3xl p-10 shadow-2xl">
-            <div id="dropzone" 
-                 class="border-4 border-dashed border-amber-400 rounded-2xl p-16 text-center cursor-pointer transition-all hover:border-white hover:bg-white/5">
-                <input type="file" id="fileInput" accept=".lua,.txt" class="hidden">
-                <div class="text-4xl mb-4">📤</div>
-                <p class="text-2xl gold font-bold mb-2">Arrastra tu script .lua aquí</p>
-                <p class="text-gray-400">o haz clic para seleccionar</p>
-                <p class="text-xs text-gray-500 mt-8">Solo archivos .lua • Máximo 500KB</p>
-            </div>
-
-            <div id="status" class="hidden mt-8 text-center">
-                <div class="inline-flex items-center gap-3 text-amber-400">
-                    <div class="w-5 h-5 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
-                    <span class="font-bold text-xl" id="statusText">OBFUSCANDO A NIVEL EXTREMO...</span>
-                </div>
-            </div>
+        <div class="info">
+            Archivos aceptados: .lua .txt<br>
+            Máximo recomendado: ~300 KB<br>
+            100% local • nada se envía
         </div>
 
-        <div class="mt-8 text-center text-xs text-gray-500">
-            BY LYNOX X GAEL
+        <div class="status" id="status">
+            <span id="statusText"></span>
         </div>
     </div>
+</div>
 
-    <script>
-        const keywords = ["and","break","do","else","elseif","end","false","for","function","if","in","local","nil","not","or","repeat","return","then","true","until","while"];
+<script>
+// ──────────────────────────────────────────────
+const keywords = ["and","break","do","else","elseif","end","false","for","function","if","in","local","nil","not","or","repeat","return","then","true","until","while"];
 
-        function generateRandomName() {
-            const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
-            let name = "_";
-            for (let i = 0; i < 28; i++) {
-                name += chars[Math.floor(Math.random() * chars.length)];
-            }
-            return name;
-        }
-
-        function renameVariables(code) {
-            const varMap = new Map();
-            return code.replace(/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/g, (match) => {
-                if (keywords.includes(match) || match.length < 3 || match.startsWith("__")) return match;
-                if (!varMap.has(match)) {
-                    varMap.set(match, generateRandomName());
-                }
-                return varMap.get(match);
-            });
-        }
-
-        function addControlFlow(code) {
-            const lines = code.split('\n');
-            const result = [];
-            for (let line of lines) {
-                if (line.trim() && Math.random() > 0.45) {
-                    const fake = `if ${Math.floor(Math.random()*99999)+10000} == ${Math.floor(Math.random()*99999)+10000} then ${line} else local ${generateRandomName()} = 0 end`;
-                    result.push(fake);
-                } else {
-                    result.push(line);
-                }
-            }
-            return result.join('\n');
-        }
-
-        function addInsaneJunk(code) {
-            const junkTemplates = [
-                `local ${generateRandomName()} = function() for _=1,math.huge do break end end`,
-                `repeat local ${generateRandomName()}=0 until ${Math.random() > 0.5}`,
-                `local ${generateRandomName()} = {${Math.floor(Math.random()*999999)}}; for k,v in pairs({}) do end`,
-                `pcall(function() local ${generateRandomName()}=debug.traceback() end)`,
-                `if ${Math.floor(Math.random()*99999)} == ${Math.floor(Math.random()*99999)} then local ${generateRandomName()}=nil end`
-            ];
-            for (let i = 0; i < 42; i++) {
-                code = junkTemplates[Math.floor(Math.random() * junkTemplates.length)] + "\n" + code;
-            }
-            return code;
-        }
-
-        function addAntiDumper() {
-            return `-- ANTI-DUMPER MAX + ANTI-HOOK
-local mt = getrawmetatable(game) or {}
-local old = mt.__index
-mt.__index = function(a,b){
-    if (typeof b === "string" && (b.includes("debug") || b === "getgc" || b === "dump")) {
-        error("ANTI-DUMPER TRIGGERED")
-    }
-    return old(a,b)
+function randName() {
+    const c = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
+    let s = "_";
+    for(let i=0;i<26;i++) s += c[Math.floor(Math.random()*c.length)];
+    return s;
 }
-setrawmetatable(game, mt)
-if hookmetamethod then hookmetamethod(game,"__index",function(){error("BLOCKED")}) end
-if getgenv then getgenv().debug=nil end
-`;
-        }
 
-        function obfuscateLua(originalCode) {
-            let code = renameVariables(originalCode);
-            code = addControlFlow(code);
-            code = addInsaneJunk(code);
-            code = addAntiDumper() + code;
-            
-            // SOLO ESTO AL PRINCIPIO (comentario que NO interfiere con tu script)
-            return `-- BY LYNOX X GAEL\n` + code;
-        }
+function rename(code) {
+    const map = new Map();
+    return code.replace(/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/g, m => {
+        if (keywords.includes(m) || m.length < 3 || m.startsWith("__")) return m;
+        if (!map.has(m)) map.set(m, randName());
+        return map.get(m);
+    });
+}
 
-        // ==================== FRONTEND ====================
-        const dropzone = document.getElementById('dropzone');
-        const fileInput = document.getElementById('fileInput');
-        const status = document.getElementById('status');
-        const statusText = document.getElementById('statusText');
+function junk(code) {
+    const junkLines = [
+        `local ${randName()}=function()while true do break end end`,
+        `repeat until ${Math.random()>0.4}`,
+        `local ${randName()}={${Math.floor(Math.random()*999999)}}`,
+        `pcall(function()local ${randName()}=debug.getinfo(9)end)`,
+    ];
+    for(let i=0;i<38;i++){
+        code = junkLines[Math.floor(Math.random()*junkLines.length)] + "\n" + code;
+    }
+    return code;
+}
 
-        dropzone.addEventListener('click', () => fileInput.click());
-        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('!border-white', 'bg-white/10'); });
-        dropzone.addEventListener('dragleave', () => { dropzone.classList.remove('!border-white', 'bg-white/10'); });
-        dropzone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropzone.classList.remove('!border-white', 'bg-white/10');
-            handleFile(e.dataTransfer.files[0]);
-        });
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) handleFile(e.target.files[0]);
-        });
+function controlFlow(code) {
+    return code.split('\n').map(line => {
+        if (!line.trim() || Math.random() < 0.48) return line;
+        return `if ${Math.floor(Math.random()*99999)}==${Math.floor(Math.random()*99999)} then ${line} else local ${randName()}=nil end`;
+    }).join('\n');
+}
 
-        async function handleFile(file) {
-            if (!file || (!file.name.toLowerCase().endsWith('.lua') && !file.name.toLowerCase().endswith('.txt'))) {
-                alert('❌ Solo archivos .lua o .txt');
-                return;
-            }
+function antiDump() {
+    return `local mt=getrawmetatable(game)or{};local o=mt.__index;mt.__index=function(t,k)if k:find"debug"or k=="getgc"or k=="dump"then error("BLOCK")end;return o(t,k)end;setrawmetatable(game,mt);`;
+}
 
-            dropzone.classList.add('opacity-50', 'pointer-events-none');
-            status.classList.remove('hidden');
-            statusText.textContent = 'OBFUSCANDO...';
+function obfuscate(code) {
+    code = rename(code);
+    code = controlFlow(code);
+    code = junk(code);
+    code = antiDump() + code;
+    return `-- BY LYNOX X GAEL v1\n` + code;
+}
 
-            try {
-                const text = await file.text();
-                const obfuscated = obfuscateLua(text);
+// ──────────────────────────────────────────────
+const dropArea   = document.getElementById('dropArea');
+const fileInput  = document.getElementById('fileInput');
+const selectBtn  = document.getElementById('selectBtn');
+const status     = document.getElementById('status');
+const statusText = document.getElementById('statusText');
 
-                const blob = new Blob([obfuscated], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `obfuscated_by_lynox_x_gael_${Date.now()}.lua`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
+function showStatus(msg, isError = false) {
+    statusText.textContent = msg;
+    status.className = 'status ' + (isError ? 'error' : 'success');
+    status.style.display = 'block';
+}
 
-                statusText.innerHTML = `✅ LISTO • <span class="text-green-400">BY LYNOX X GAEL</span>`;
-                setTimeout(() => {
-                    dropzone.classList.remove('opacity-50', 'pointer-events-none');
-                    status.classList.add('hidden');
-                    alert('✅ Archivo descargado\nSolo dice BY LYNOX X GAEL al principio (no interfiere)');
-                }, 1500);
+selectBtn.onclick = () => fileInput.click();
 
-            } catch (err) {
-                alert('Error al procesar');
-                dropzone.classList.remove('opacity-50', 'pointer-events-none');
-                status.classList.add('hidden');
-            }
-        }
-    </script>
+dropArea.onclick = (e) => {
+    if (e.target.tagName !== 'BUTTON') fileInput.click();
+};
+
+['dragover','dragenter'].forEach(ev => {
+    dropArea.addEventListener(ev, e => {
+        e.preventDefault();
+        dropArea.classList.add('active');
+    });
+});
+
+['dragleave','drop'].forEach(ev => {
+    dropArea.addEventListener(ev, e => {
+        e.preventDefault();
+        dropArea.classList.remove('active');
+    });
+});
+
+dropArea.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+
+fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+async function handleFiles(files) {
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    if (!file.name.toLowerCase().match(/\.(lua|txt)$/)) {
+        showStatus('SOLO .lua o .txt  POR FAVOR', true);
+        return;
+    }
+
+    showStatus('OBFUSCANDO...');
+
+    try {
+        const text = await file.text();
+        const result = obfuscate(text);
+
+        const blob = new Blob([result], {type: 'text/plain'});
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `obf_${file.name.replace(/\.[^.]+$/, '')}_${Date.now()}.lua`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showStatus('LISTO → ARCHIVO DESCARGADO');
+        setTimeout(() => status.style.display = 'none', 4000);
+
+    } catch (err) {
+        showStatus('ERROR AL LEER / PROCESAR ARCHIVO', true);
+        console.error(err);
+    }
+}
+</script>
 </body>
 </html>
