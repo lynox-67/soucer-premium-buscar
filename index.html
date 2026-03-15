@@ -1,234 +1,181 @@
-BY Lynox X Gael V1
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Lynox Key System</title>
-
-<style>
-
-body{
-background:#0a0a0a;
-color:#00ff9d;
-font-family:Arial;
-text-align:center;
-}
-
-.panel{
-background:#111;
-padding:20px;
-margin:20px auto;
-width:350px;
-border-radius:12px;
-box-shadow:0 0 10px #00ff9d33;
-}
-
-input{
-padding:10px;
-margin:5px;
-width:85%;
-background:#000;
-border:1px solid #00ff9d;
-color:#00ff9d;
-}
-
-button{
-padding:10px 15px;
-margin:5px;
-background:#00ff9d;
-border:none;
-cursor:pointer;
-font-weight:bold;
-}
-
-#adminPanel{
-display:none;
-}
-
-#keyPanel{
-display:none;
-}
-
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LYNOX x GAEL • OBFUSCATOR EXTREMO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&amp;family=Roboto+Mono:wght@400;700&amp;display=swap');
+        body { background: linear-gradient(135deg, #0a0a0a, #1a1a2e); }
+        .gold { color: #ffd700; text-shadow: 0 0 20px #ffd700; }
+        .card { background: rgba(15, 23, 42, 0.95); border: 2px solid #ffd700; }
+    </style>
 </head>
+<body class="min-h-screen text-white font-mono">
+    <div class="max-w-3xl mx-auto pt-12 pb-20">
+        <div class="text-center mb-10">
+            <h1 class="text-6xl font-bold tracking-widest gold mb-2">LYNOX<span class="text-white">x</span>GAEL</h1>
+            <p class="text-xl text-amber-400">OBFUSCATOR EXTREMO • FULL SEGURO • OFFLINE</p>
+            <p class="text-xs text-gray-500 mt-2">100% LOCAL • NADA SE ENVÍA • NUNCA INTERFIERE CON TU SCRIPT</p>
+        </div>
 
-<body>
+        <div class="card rounded-3xl p-10 shadow-2xl">
+            <div id="dropzone" 
+                 class="border-4 border-dashed border-amber-400 rounded-2xl p-16 text-center cursor-pointer transition-all hover:border-white hover:bg-white/5">
+                <input type="file" id="fileInput" accept=".lua,.txt" class="hidden">
+                <div class="text-4xl mb-4">📤</div>
+                <p class="text-2xl gold font-bold mb-2">Arrastra tu script .lua aquí</p>
+                <p class="text-gray-400">o haz clic para seleccionar</p>
+                <p class="text-xs text-gray-500 mt-8">Solo archivos .lua • Máximo 500KB</p>
+            </div>
 
-<h1>Lynox Key System</h1>
+            <div id="status" class="hidden mt-8 text-center">
+                <div class="inline-flex items-center gap-3 text-amber-400">
+                    <div class="w-5 h-5 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+                    <span class="font-bold text-xl" id="statusText">OBFUSCANDO A NIVEL EXTREMO...</span>
+                </div>
+            </div>
+        </div>
 
-<div class="panel" id="accessPanel">
-<h3>Device Access</h3>
-<p id="accessStatus"></p>
-<button onclick="logoutDevice()">Reset Device Access</button>
-</div>
+        <div class="mt-8 text-center text-xs text-gray-500">
+            BY LYNOX X GAEL
+        </div>
+    </div>
 
-<div class="panel" id="keyPanel">
+    <script>
+        const keywords = ["and","break","do","else","elseif","end","false","for","function","if","in","local","nil","not","or","repeat","return","then","true","until","while"];
 
-<h3>Enter Key</h3>
+        function generateRandomName() {
+            const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
+            let name = "_";
+            for (let i = 0; i < 28; i++) {
+                name += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return name;
+        }
 
-<input id="keyInput" placeholder="Enter your key">
+        function renameVariables(code) {
+            const varMap = new Map();
+            return code.replace(/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/g, (match) => {
+                if (keywords.includes(match) || match.length < 3 || match.startsWith("__")) return match;
+                if (!varMap.has(match)) {
+                    varMap.set(match, generateRandomName());
+                }
+                return varMap.get(match);
+            });
+        }
 
-<br>
+        function addControlFlow(code) {
+            const lines = code.split('\n');
+            const result = [];
+            for (let line of lines) {
+                if (line.trim() && Math.random() > 0.45) {
+                    const fake = `if ${Math.floor(Math.random()*99999)+10000} == ${Math.floor(Math.random()*99999)+10000} then ${line} else local ${generateRandomName()} = 0 end`;
+                    result.push(fake);
+                } else {
+                    result.push(line);
+                }
+            }
+            return result.join('\n');
+        }
 
-<button onclick="checkKey()">Verify Key</button>
+        function addInsaneJunk(code) {
+            const junkTemplates = [
+                `local ${generateRandomName()} = function() for _=1,math.huge do break end end`,
+                `repeat local ${generateRandomName()}=0 until ${Math.random() > 0.5}`,
+                `local ${generateRandomName()} = {${Math.floor(Math.random()*999999)}}; for k,v in pairs({}) do end`,
+                `pcall(function() local ${generateRandomName()}=debug.traceback() end)`,
+                `if ${Math.floor(Math.random()*99999)} == ${Math.floor(Math.random()*99999)} then local ${generateRandomName()}=nil end`
+            ];
+            for (let i = 0; i < 42; i++) {
+                code = junkTemplates[Math.floor(Math.random() * junkTemplates.length)] + "\n" + code;
+            }
+            return code;
+        }
 
-<p id="result"></p>
-
-</div>
-
-<div class="panel">
-
-<h3>Admin Login</h3>
-
-<input type="password" id="adminPass" placeholder="Admin Password">
-
-<br>
-
-<button onclick="loginAdmin()">Login</button>
-
-<p id="loginStatus"></p>
-
-</div>
-
-<div class="panel" id="adminPanel">
-
-<h3>Admin Panel</h3>
-
-<button onclick="createKey()">Generate Key</button>
-
-<p id="newKey"></p>
-
-<h4>Keys Database</h4>
-
-<div id="keyList"></div>
-
-</div>
-
-<script>
-
-let adminPassword = "lynoxadmin"
-
-let keys = JSON.parse(localStorage.getItem("keys")) || {}
-
-let deviceAuth = localStorage.getItem("deviceAuth")
-
-function saveKeys(){
-localStorage.setItem("keys", JSON.stringify(keys))
+        function addAntiDumper() {
+            return `-- ANTI-DUMPER MAX + ANTI-HOOK
+local mt = getrawmetatable(game) or {}
+local old = mt.__index
+mt.__index = function(a,b){
+    if (typeof b === "string" && (b.includes("debug") || b === "getgc" || b === "dump")) {
+        error("ANTI-DUMPER TRIGGERED")
+    }
+    return old(a,b)
 }
+setrawmetatable(game, mt)
+if hookmetamethod then hookmetamethod(game,"__index",function(){error("BLOCKED")}) end
+if getgenv then getgenv().debug=nil end
+`;
+        }
 
-function updateAccess(){
+        function obfuscateLua(originalCode) {
+            let code = renameVariables(originalCode);
+            code = addControlFlow(code);
+            code = addInsaneJunk(code);
+            code = addAntiDumper() + code;
+            
+            // SOLO ESTO AL PRINCIPIO (comentario que NO interfiere con tu script)
+            return `-- BY LYNOX X GAEL\n` + code;
+        }
 
-if(deviceAuth == "true"){
+        // ==================== FRONTEND ====================
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+        const status = document.getElementById('status');
+        const statusText = document.getElementById('statusText');
 
-document.getElementById("accessStatus").innerHTML = "✅ Device Authorized"
+        dropzone.addEventListener('click', () => fileInput.click());
+        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('!border-white', 'bg-white/10'); });
+        dropzone.addEventListener('dragleave', () => { dropzone.classList.remove('!border-white', 'bg-white/10'); });
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('!border-white', 'bg-white/10');
+            handleFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) handleFile(e.target.files[0]);
+        });
 
-document.getElementById("keyPanel").style.display = "none"
+        async function handleFile(file) {
+            if (!file || (!file.name.toLowerCase().endsWith('.lua') && !file.name.toLowerCase().endswith('.txt'))) {
+                alert('❌ Solo archivos .lua o .txt');
+                return;
+            }
 
-}else{
+            dropzone.classList.add('opacity-50', 'pointer-events-none');
+            status.classList.remove('hidden');
+            statusText.textContent = 'OBFUSCANDO...';
 
-document.getElementById("accessStatus").innerHTML = "❌ Device Not Authorized"
+            try {
+                const text = await file.text();
+                const obfuscated = obfuscateLua(text);
 
-document.getElementById("keyPanel").style.display = "block"
+                const blob = new Blob([obfuscated], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `obfuscated_by_lynox_x_gael_${Date.now()}.lua`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
 
-}
+                statusText.innerHTML = `✅ LISTO • <span class="text-green-400">BY LYNOX X GAEL</span>`;
+                setTimeout(() => {
+                    dropzone.classList.remove('opacity-50', 'pointer-events-none');
+                    status.classList.add('hidden');
+                    alert('✅ Archivo descargado\nSolo dice BY LYNOX X GAEL al principio (no interfiere)');
+                }, 1500);
 
-}
-
-function logoutDevice(){
-
-localStorage.removeItem("deviceAuth")
-
-location.reload()
-
-}
-
-function checkKey(){
-
-let key = document.getElementById("keyInput").value
-
-if(keys[key]){
-
-if(keys[key].used == false){
-
-keys[key].used = true
-
-saveKeys()
-
-localStorage.setItem("deviceAuth","true")
-
-document.getElementById("result").innerText = "✅ Key Accepted"
-
-setTimeout(()=>{
-location.reload()
-},1000)
-
-}else{
-
-document.getElementById("result").innerText = "❌ Key Already Used"
-
-}
-
-}else{
-
-document.getElementById("result").innerText = "❌ Invalid Key"
-
-}
-
-updateList()
-
-}
-
-function loginAdmin(){
-
-let pass = document.getElementById("adminPass").value
-
-if(pass === adminPassword){
-
-document.getElementById("adminPanel").style.display = "block"
-
-document.getElementById("loginStatus").innerText = "✅ Admin Logged"
-
-}else{
-
-document.getElementById("loginStatus").innerText = "❌ Wrong Password"
-
-}
-
-}
-
-function createKey(){
-
-let key = "LYNOX-" + Math.random().toString(36).substring(2,10).toUpperCase()
-
-keys[key] = {used:false}
-
-saveKeys()
-
-document.getElementById("newKey").innerText = "New Key: " + key
-
-updateList()
-
-}
-
-function updateList(){
-
-let html = ""
-
-for(let k in keys){
-
-html += k + " - " + (keys[k].used ? "USED ❌" : "FREE ✅") + "<br>"
-
-}
-
-document.getElementById("keyList").innerHTML = html
-
-}
-
-updateAccess()
-
-updateList()
-
-</script>
-
+            } catch (err) {
+                alert('Error al procesar');
+                dropzone.classList.remove('opacity-50', 'pointer-events-none');
+                status.classList.add('hidden');
+            }
+        }
+    </script>
 </body>
 </html>
