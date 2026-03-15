@@ -3,99 +3,79 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ofuscador Lua - LYNOX X GAEL Edition</title>
+  <title>LYNOX X GAEL Obfuscator - Automático</title>
   <style>
-    body { font-family: Arial, sans-serif; background:#0d1117; color:#e6edf3; padding:20px; max-width:1000px; margin:auto; }
-    h1 { color:#58a6ff; text-align:center; }
-    textarea { width:100%; height:220px; background:#161b22; color:#c9d1d9; border:1px solid #30363d; border-radius:8px; padding:12px; font-family:Consolas,monospace; margin:15px 0; }
-    button { padding:12px 24px; margin:10px; background:#238636; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; }
-    button:hover { background:#2ea043; }
-    #ofuscarBtn { background:#6e40c9; }
-    #limpiarBtn { background:#da3633; }
-    #resultado { background:#0e4429; border-color:#238636; }
-    .instruccion { background:#21262d; padding:15px; border-radius:8px; margin:20px 0; border-left:4px solid #58a6ff; }
+    body { font-family: Arial; background: #0d1117; color: #fff; text-align: center; padding: 40px; }
+    h1 { color: #58a6ff; }
+    textarea { width: 90%; max-width: 800px; height: 300px; background: #161b22; color: #c9d1d9; border: 2px solid #30363d; border-radius: 12px; padding: 15px; font-family: Consolas, monospace; }
+    button { padding: 18px 40px; font-size: 20px; margin: 20px; background: #238636; color: white; border: none; border-radius: 12px; cursor: pointer; }
+    button:hover { background: #2ea043; }
+    #resultado { background: #0e4429; border-color: #39d353; }
+    .paso { margin: 30px 0; font-size: 18px; }
   </style>
 </head>
 <body>
-  <h1>Ofuscador Lua MNX - Powered by LYNOX X GAEL</h1>
+  <h1>🔒 LYNOX X GAEL Obfuscator</h1>
+  <p class="paso">Pega tu código Lua y presiona el botón → todo lo demás es automático</p>
 
-  <div class="instruccion">
-    <strong>Paso 1:</strong> Pega tu código Lua original abajo.<br>
-    <strong>Paso 2:</strong> Presiona "Ofuscar en Monsy" → se abre el obfuscador.<br>
-    <strong>Paso 3:</strong> Ofusca → copia el resultado ofuscado → pégalo en el segundo cuadro y presiona "Limpiar y Cambiar Marca".
+  <textarea id="original" placeholder="Pega aquí tu código Lua original..."></textarea><br><br>
+
+  <button onclick="iniciarProceso()">🚀 Ofuscar y poner marca LYNOX X GAEL</button>
+
+  <div id="instrucciones" style="display:none; margin-top:30px;">
+    <p><strong>Paso rápido:</strong></p>
+    <p>1. En la ventana que se abrió, pega tu código y dale “Obfuscate”.</p>
+    <p>2. Copia todo el resultado ofuscado (Ctrl+A → Ctrl+C).</p>
+    <p>3. Vuelve aquí y presiona “Pegar y Procesar” (el botón aparecerá abajo).</p>
   </div>
 
-  <label><strong>1. Tu código Lua original:</strong></label>
-  <textarea id="original" placeholder="Pega aquí tu script Lua sin ofuscar..."></textarea>
+  <button id="procesarBtn" style="display:none; background:#da3633;" onclick="procesarOutput()">Pegar y Procesar (poner LYNOX X GAEL)</button>
 
-  <button id="ofuscarBtn">Ofuscar en Monsy →</button>
-
-  <label><strong>2. Pega aquí el código ya ofuscado (del otro sitio):</strong></label>
-  <textarea id="ofuscado" placeholder="Pega el output ofuscado aquí..."></textarea>
-
-  <div>
-    <button id="limpiarBtn">Quitar Monsy</button>
-    <button id="cambiarBtn">Cambiar a LYNOX X GAEL</button>
-    <button id="copiarFinal">Copiar resultado final</button>
-  </div>
-
-  <label><strong>Resultado final (listo para usar):</strong></label>
-  <textarea id="resultado" readonly placeholder="Aquí aparecerá el código limpio con tu marca..."></textarea>
+  <textarea id="resultado" readonly placeholder="Aquí aparecerá tu código ofuscado con marca LYNOX X GAEL..."></textarea>
 
   <script>
-    const original = document.getElementById('original');
-    const ofuscadoInput = document.getElementById('ofuscado');
-    const resultado = document.getElementById('resultado');
+    let ofuscadoTexto = "";
 
-    document.getElementById('ofuscarBtn').onclick = () => {
-      const code = original.value.trim();
-      if (!code) return alert('Pega tu código primero!');
+    function iniciarProceso() {
+      const codigo = document.getElementById('original').value.trim();
+      if (!codigo) return alert("¡Pega tu código Lua primero!");
+
+      // Abre el obfuscador en nueva ventana
+      const popup = window.open('https://obfuscatormnx.ct.ws/?i=1', 'obfuscator', 'width=1100,height=800');
       
-      const url = 'https://obfuscatormnx.ct.ws/?i=1';
-      window.open(url, '_blank');  // Abre en nueva pestaña
-      alert('Se abrió el obfuscador. Ofusca tu código y copia el resultado.');
-    };
+      document.getElementById('instrucciones').style.display = 'block';
+      document.getElementById('procesarBtn').style.display = 'inline-block';
 
-    function procesar(tipo) {
-      let texto = ofuscadoInput.value.trim();
-      if (!texto) return alert('Pega el código ofuscado primero!');
+      // Guardamos el código original por si lo necesitas
+      localStorage.setItem('codigoOriginal', codigo);
+      alert("✅ Ventana abierta.\nOfusca tu código allí y copia el resultado completo.");
+    }
 
-      // Patrones para eliminar/reemplazar Monsy (agrega más si ves otros)
+    function procesarOutput() {
+      ofuscadoTexto = prompt("Pega aquí el código ofuscado que copiaste del otro sitio:");
+      if (!ofuscadoTexto) return;
+
+      let limpio = ofuscadoTexto;
+
+      // Todos los posibles textos de Monsy
       const patrones = [
         /--\s*Protected by Monsy Obfuscator/gi,
         /--\s*Protected by Monsy/gi,
         /--\s*Monsy/gi,
         /--\s*By Monsy/gi,
         /Monsy/gi,
-        /mnx/gi,
-        /@ Monsy/gi
+        /mnx/gi
       ];
 
-      let limpio = texto;
       patrones.forEach(p => {
-        if (tipo === 'cambiar') {
-          limpio = limpio.replace(p, '-- Protected by LYNOX X GAEL');
-        } else {
-          limpio = limpio.replace(p, '');
-        }
+        limpio = limpio.replace(p, '-- Protected by LYNOX X GAEL');
       });
 
-      limpio = limpio.replace(/\n\s*\n+/g, '\n').trim(); // Limpia líneas vacías
+      limpio = limpio.replace(/\n\s*\n/g, '\n').trim();
 
-      resultado.value = limpio;
-      resultado.scrollIntoView({behavior: 'smooth'});
-      alert(tipo === 'cambiar' ? '¡Marca cambiada a LYNOX X GAEL!' : '¡Referencias a Monsy eliminadas!');
+      document.getElementById('resultado').value = limpio;
+      alert("✅ ¡Listo! Tu código ahora tiene marca LYNOX X GAEL");
     }
-
-    document.getElementById('cambiarBtn').onclick = () => procesar('cambiar');
-    document.getElementById('limpiarBtn').onclick = () => procesar('quitar');
-
-    document.getElementById('copiarFinal').onclick = () => {
-      if (!resultado.value) return alert('No hay resultado');
-      resultado.select();
-      navigator.clipboard.writeText(resultado.value);
-      alert('¡Copiado!');
-    };
   </script>
 </body>
 </html>
