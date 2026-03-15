@@ -2,115 +2,100 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Mi Obfuscador Lua (usa el mismo método que obfuscatormnx)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ofuscador Lua - LYNOX X GAEL Edition</title>
   <style>
-    body {font-family:Arial;background:#111;color:#0f0;margin:20px;}
-    textarea, #output {width:100%;height:250px;background:#000;color:#0f0;font-family:monospace;padding:10px;}
-    button {padding:12px 20px;margin:10px;background:#0f0;color:#000;border:none;cursor:pointer;font-weight:bold;}
+    body { font-family: Arial, sans-serif; background:#0d1117; color:#e6edf3; padding:20px; max-width:1000px; margin:auto; }
+    h1 { color:#58a6ff; text-align:center; }
+    textarea { width:100%; height:220px; background:#161b22; color:#c9d1d9; border:1px solid #30363d; border-radius:8px; padding:12px; font-family:Consolas,monospace; margin:15px 0; }
+    button { padding:12px 24px; margin:10px; background:#238636; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; }
+    button:hover { background:#2ea043; }
+    #ofuscarBtn { background:#6e40c9; }
+    #limpiarBtn { background:#da3633; }
+    #resultado { background:#0e4429; border-color:#238636; }
+    .instruccion { background:#21262d; padding:15px; border-radius:8px; margin:20px 0; border-left:4px solid #58a6ff; }
   </style>
 </head>
 <body>
-  <h1>🚀 Mi Obfuscador Lua (igual que obfuscatormnx)</h1>
-  <p>Pega tu script → Ofusca con XOR + Shuffle → Te da el loader listo para tu executor.</p>
+  <h1>Ofuscador Lua MNX - Powered by LYNOX X GAEL</h1>
 
-  <textarea id="input" placeholder="Pega aquí tu código Lua..."></textarea><br><br>
-  
-  <button onclick="obfuscate()">🔒 Ofuscar Ahora</button>
-  <button onclick="copyOutput()">📋 Copiar Loader</button>
-  <button onclick="downloadOutput()">💾 Descargar .lua</button>
+  <div class="instruccion">
+    <strong>Paso 1:</strong> Pega tu código Lua original abajo.<br>
+    <strong>Paso 2:</strong> Presiona "Ofuscar en Monsy" → se abre el obfuscador.<br>
+    <strong>Paso 3:</strong> Ofusca → copia el resultado ofuscado → pégalo en el segundo cuadro y presiona "Limpiar y Cambiar Marca".
+  </div>
 
-  <br><br>
-  <div id="output">El loader aparecerá aquí...</div>
+  <label><strong>1. Tu código Lua original:</strong></label>
+  <textarea id="original" placeholder="Pega aquí tu script Lua sin ofuscar..."></textarea>
+
+  <button id="ofuscarBtn">Ofuscar en Monsy →</button>
+
+  <label><strong>2. Pega aquí el código ya ofuscado (del otro sitio):</strong></label>
+  <textarea id="ofuscado" placeholder="Pega el output ofuscado aquí..."></textarea>
+
+  <div>
+    <button id="limpiarBtn">Quitar Monsy</button>
+    <button id="cambiarBtn">Cambiar a LYNOX X GAEL</button>
+    <button id="copiarFinal">Copiar resultado final</button>
+  </div>
+
+  <label><strong>Resultado final (listo para usar):</strong></label>
+  <textarea id="resultado" readonly placeholder="Aquí aparecerá el código limpio con tu marca..."></textarea>
 
   <script>
-    const getRandomKey = () => Math.floor(Math.random() * 255) + 1;
+    const original = document.getElementById('original');
+    const ofuscadoInput = document.getElementById('ofuscado');
+    const resultado = document.getElementById('resultado');
 
-    function minify(code) {
-      return code
-        .replace(/--[^\n]*\n/g, '')
-        .replace(/\/\/[^\n]*\n/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
+    document.getElementById('ofuscarBtn').onclick = () => {
+      const code = original.value.trim();
+      if (!code) return alert('Pega tu código primero!');
+      
+      const url = 'https://obfuscatormnx.ct.ws/?i=1';
+      window.open(url, '_blank');  // Abre en nueva pestaña
+      alert('Se abrió el obfuscador. Ofusca tu código y copia el resultado.');
+    };
+
+    function procesar(tipo) {
+      let texto = ofuscadoInput.value.trim();
+      if (!texto) return alert('Pega el código ofuscado primero!');
+
+      // Patrones para eliminar/reemplazar Monsy (agrega más si ves otros)
+      const patrones = [
+        /--\s*Protected by Monsy Obfuscator/gi,
+        /--\s*Protected by Monsy/gi,
+        /--\s*Monsy/gi,
+        /--\s*By Monsy/gi,
+        /Monsy/gi,
+        /mnx/gi,
+        /@ Monsy/gi
+      ];
+
+      let limpio = texto;
+      patrones.forEach(p => {
+        if (tipo === 'cambiar') {
+          limpio = limpio.replace(p, '-- Protected by LYNOX X GAEL');
+        } else {
+          limpio = limpio.replace(p, '');
+        }
+      });
+
+      limpio = limpio.replace(/\n\s*\n+/g, '\n').trim(); // Limpia líneas vacías
+
+      resultado.value = limpio;
+      resultado.scrollIntoView({behavior: 'smooth'});
+      alert(tipo === 'cambiar' ? '¡Marca cambiada a LYNOX X GAEL!' : '¡Referencias a Monsy eliminadas!');
     }
 
-    function toBytes(str) {
-      return Array.from(new TextEncoder().encode(str));
-    }
+    document.getElementById('cambiarBtn').onclick = () => procesar('cambiar');
+    document.getElementById('limpiarBtn').onclick = () => procesar('quitar');
 
-    function xorBytes(bytes, key) {
-      return bytes.map(b => b ^ key);
-    }
-
-    function shuffle(array) {
-      let a = array.slice();
-      for (let i = a.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [a[i], a[j]] = [a[j], a[i]];
-      }
-      return a;
-    }
-
-    function getUnshufflePositions(length) {
-      let indices = Array.from({length}, (_, i) => i);
-      for (let i = length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [indices[i], indices[j]] = [indices[j], indices[i]];
-      }
-      let pos = new Array(length);
-      indices.forEach((orig, idx) => pos[orig] = idx);
-      return pos;
-    }
-
-    async function obfuscate() {
-      let code = document.getElementById('input').value.trim();
-      if (!code) return alert("¡Pega código primero!");
-
-      const key = getRandomKey();
-      const clean = minify(code);
-      let bytes = toBytes(clean);
-      let xored = xorBytes(bytes, key);
-      let shuffled = shuffle(xored);
-      let unshufflePos = getUnshufflePositions(shuffled.length);
-
-      let byteStr = shuffled.join(',');
-      let posStr = unshufflePos.join(',');
-
-      const loader = `-- Obfuscado con MiObfuscator (mismo método que obfuscatormnx.ct.ws)
-return (function()
-  local bytes = {${byteStr}}
-  local positions = {${posStr}}
-  local key = ${key}
-
-  local unshuffled = {}
-  for i = 1, #positions do
-    unshuffled[positions[i] + 1] = bytes[i]
-  end
-
-  local original = {}
-  for i, b in ipairs(unshuffled) do
-    original[i] = b \~ key
-  end
-
-  local script = string.char(table.unpack(original))
-  return loadstring(script)()
-end)()`;
-
-      document.getElementById('output').textContent = loader;
-    }
-
-    function copyOutput() {
-      const txt = document.getElementById('output').textContent;
-      navigator.clipboard.writeText(txt).then(() => alert("¡Loader copiado!"));
-    }
-
-    function downloadOutput() {
-      const txt = document.getElementById('output').textContent;
-      const blob = new Blob([txt], {type: 'text/plain'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'obfuscated.lua';
-      a.click();
-    }
+    document.getElementById('copiarFinal').onclick = () => {
+      if (!resultado.value) return alert('No hay resultado');
+      resultado.select();
+      navigator.clipboard.writeText(resultado.value);
+      alert('¡Copiado!');
+    };
   </script>
 </body>
 </html>
