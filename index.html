@@ -1,228 +1,204 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Lua Obfuscator - BY LYNOX X GAEL</title>
-  <style>
-    body {
-      background:#0d0d0d; color:#e0e0e0; font-family:Consolas,monospace;
-      margin:0; padding:20px; min-height:100vh;
-    }
-    .container { max-width:1200px; margin:auto; display:grid; grid-template-columns:1fr 1fr; gap:20px; }
-    h1 { text-align:center; color:#00ff9d; margin-bottom:10px; grid-column:1 / -1; }
-    .panel {
-      background:#1a1a1a; border:1px solid #333; border-radius:6px; padding:15px;
-      display:flex; flex-direction:column;
-    }
-    .label { color:#00ff9d; margin-bottom:8px; font-weight:bold; }
-    .dropzone {
-      border:2px dashed #444; padding:60px 20px; text-align:center;
-      cursor:pointer; transition:0.2s; margin-bottom:15px;
-    }
-    .dropzone:hover, .dropzone.active { border-color:#00ff9d; background:rgba(0,255,157,0.05); }
-    textarea {
-      flex:1; background:#000; color:#0f0; border:1px solid #333; padding:10px;
-      font-family:Consolas,monospace; resize:none; min-height:300px;
-    }
-    .stats { font-size:0.9em; color:#888; margin-top:8px; }
-    .buttons { display:flex; gap:10px; margin-top:15px; flex-wrap:wrap; }
-    button {
-      background:#00aa77; color:#000; border:none; padding:10px 18px;
-      cursor:pointer; font-weight:bold; border-radius:4px; transition:0.2s;
-    }
-    button:hover { background:#00ff9d; }
-    button.clear { background:#aa0000; color:#fff; }
-    button.clear:hover { background:#ff3333; }
-    #output { white-space:pre-wrap; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LYNOX x GAEL • OBFUSCATOR EXTREMO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: linear-gradient(135deg, #0a0a0a, #1a1a2e); }
+        .gold { color: #ffd700; text-shadow: 0 0 15px #ffd700; }
+        .card { background: rgba(15, 23, 42, 0.92); border: 2px solid #ffd700; }
+        textarea { resize: vertical; min-height: 180px; }
+    </style>
 </head>
-<body>
+<body class="min-h-screen text-white font-mono">
+    <div class="max-w-4xl mx-auto pt-10 pb-20 px-4">
+        <div class="text-center mb-10">
+            <h1 class="text-5xl md:text-6xl font-bold tracking-wider gold mb-3">LYNOX<span class="text-white"> x </span>GAEL</h1>
+            <p class="text-xl text-amber-300">Obfuscador extremo • 100% offline • Seguro</p>
+        </div>
 
-<h1>Lua Obfuscator<br><small>BY LYNOX X GAEL</small></h1>
+        <div class="card rounded-3xl p-8 md:p-10 shadow-2xl">
+            <!-- Área para pegar texto -->
+            <div class="mb-8">
+                <label class="block text-lg gold font-semibold mb-2">Pega tu script aquí:</label>
+                <textarea id="textInput" class="w-full bg-gray-900 border border-amber-600 rounded-xl p-4 text-gray-200 font-mono text-sm focus:outline-none focus:border-amber-400" placeholder="-- Pega tu código Lua/Luau aquí..."></textarea>
+            </div>
 
-<div class="container">
-  <div class="panel">
-    <div class="label">INPUT (drop .lua file here)</div>
-    <div class="dropzone" id="dropInput">Drop .lua file here<br>or click to select</div>
-    <input type="file" id="fileInput" accept=".lua" style="display:none">
-    <textarea id="inputArea" readonly placeholder="No file loaded"></textarea>
-    <div class="stats" id="inputStats">Lines: 0 | Size: 0 KB</div>
-  </div>
+            <!-- O archivo -->
+            <div class="mb-8">
+                <label class="block text-lg gold font-semibold mb-2">O sube un archivo:</label>
+                <div id="dropzone" class="border-3 border-dashed border-amber-500 rounded-2xl p-10 text-center cursor-pointer transition hover:border-amber-300 hover:bg-white/5">
+                    <input type="file" id="fileInput" accept=".lua,.txt,.luau" class="hidden">
+                    <div class="text-5xl mb-4">📤</div>
+                    <p class="text-xl gold">Arrastra o haz clic para seleccionar archivo</p>
+                    <p class="text-sm text-gray-500 mt-3">.lua • .txt • .luau</p>
+                </div>
+            </div>
 
-  <div class="panel">
-    <div class="label">OUTPUT (paste this into your executor)</div>
-    <textarea id="outputArea" readonly placeholder="Click Obfuscate to start..."></textarea>
-    <div class="stats" id="outputStats">Lines: 0 | Size: 0 KB</div>
+            <!-- Botón principal -->
+            <button id="obfuscateBtn" class="w-full bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white font-bold py-4 px-8 rounded-xl text-xl transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                OFUSCAR AHORA
+            </button>
 
-    <div class="buttons">
-      <button id="obfuscateBtn">☯ Obfuscate</button>
-      <button id="copyBtn">📋 Copy</button>
-      <button id="saveBtn">💾 Save.txt</button>
-      <button class="clear" id="clearBtn">🗑 Clear</button>
+            <!-- Estado -->
+            <div id="status" class="hidden mt-6 text-center">
+                <div class="inline-flex items-center gap-3 text-amber-400">
+                    <div class="w-6 h-6 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+                    <span class="font-bold text-lg" id="statusText">Procesando...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-10 text-sm text-gray-600">
+            BY LYNOX X GAEL • Todo se procesa en tu navegador • Nada se envía
+        </div>
     </div>
-  </div>
-</div>
 
-<script>
-// ──────────────────────────────────────────────
-// OBFUSCACIÓN TIPO obfuscatormnx: bytes → XOR → shuffle → loader loadstring
-// ──────────────────────────────────────────────
+    <script>
+        const keywords = ["and","break","do","else","elseif","end","false","for","function","if","in","local","nil","not","or","repeat","return","then","true","until","while"];
 
-function randomKey() {
-  return Math.floor(Math.random() * 240) + 15; // 15-254
-}
+        function generateRandomName() {
+            const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
+            let name = "_";
+            for (let i = 0; i < 28; i++) name += chars[Math.floor(Math.random() * chars.length)];
+            return name;
+        }
 
-function xorBytes(bytes, key) {
-  const result = new Uint8Array(bytes.length);
-  for (let i = 0; i < bytes.length; i++) {
-    result[i] = bytes[i] ^ key;
-  }
-  return result;
-}
+        function renameVariables(code) {
+            const varMap = new Map();
+            return code.replace(/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/g, (m) => {
+                if (keywords.includes(m) || m.length < 3 || m.startsWith("__")) return m;
+                if (!varMap.has(m)) varMap.set(m, generateRandomName());
+                return varMap.get(m);
+            });
+        }
 
-function shuffleBytes(bytes) {
-  const arr = Array.from(bytes);
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return new Uint8Array(arr);
-}
+        function addControlFlow(code) {
+            return code.split('\n').map(line => {
+                if (line.trim() && Math.random() > 0.4) {
+                    return `if ${Math.floor(Math.random()*99999)+10000} == ${Math.floor(Math.random()*99999)+10000} then ${line} else local ${generateRandomName()} = 0 end`;
+                }
+                return line;
+            }).join('\n');
+        }
 
-function bytesToBase64(bytes) {
-  let binary = '';
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
+        function addJunk(code) {
+            const junk = [
+                `local ${generateRandomName()} = function() for _=1,math.huge do break end end`,
+                `repeat local ${generateRandomName()}=0 until false`,
+                `local ${generateRandomName()} = {${Math.floor(Math.random()*999999)}}`,
+                `pcall(function() local x=debug.traceback() end)`,
+            ];
+            for (let i = 0; i < 35; i++) {
+                code = junk[Math.floor(Math.random() * junk.length)] + "\n" + code;
+            }
+            return code;
+        }
 
-function obfuscateCode(code) {
-  const encoder = new TextEncoder();
-  let bytes = encoder.encode(code);
-
-  // Strip comentarios básicos (opcional, pero ayuda)
-  code = code.replace(/--[^\n]*/g, '');
-
-  // XOR + shuffle
-  const key = randomKey();
-  bytes = xorBytes(bytes, key);
-  bytes = shuffleBytes(bytes);
-
-  const b64 = bytesToBase64(bytes);
-
-  // Loader que deshace shuffle + XOR + loadstring
-  // Nota: shuffle inverso necesita seed fijo o guardar índices → aquí usamos simple reverse-shuffle aproximado para demo
-  // En producción real se guarda seed o tabla de permutación, pero esto ya es funcional
-  const loader = `-- BY LYNOX X GAEL
-local function rev_shuffle(b)
-  local t = {}
-  for i=1,#b do t[i] = b:sub(i,i) end
-  -- reverse shuffle aproximado (no perfecto, pero funcional para demo)
-  for i=#t,2,-1 do
-    local j = math.random(1,i)
-    t[i],t[j] = t[j],t[i]
-  end
-  return table.concat(t)
+        function addAntiDumper() {
+            return `-- ANTI-DUMPER + ANTI-HOOK
+local mt = getrawmetatable(game) or {}
+local old = mt.__index
+mt.__index = function(t,k)
+    if (typeof k === "string" && (k:find("debug") or k=="getgc" or k=="dump")) then
+        error("ANTI-DUMPER ACTIVADO")
+    end
+    return old(t,k)
 end
-
-local b64 = "${b64}"
-local key = ${key}
-local data = b64:gsub(".", function(c) return string.char(c:byte()~key) end)
-data = rev_shuffle(data)
-loadstring(data)()
+setrawmetatable(game, mt)
+if hookmetamethod then hookmetamethod(game,"__index",function() error("BLOCKED") end) end
 `;
+        }
 
-  return loader;
-}
+        function obfuscate(code) {
+            if (!code.trim()) return "";
+            let result = renameVariables(code);
+            result = addControlFlow(result);
+            result = addJunk(result);
+            result = addAntiDumper() + result;
+            return `-- BY LYNOX X GAEL\n` + result;
+        }
 
-// ────────────────────────────────────────────── UI ──────────────────────────────────────────────
+        // Interfaz
+        const textInput = document.getElementById('textInput');
+        const fileInput = document.getElementById('fileInput');
+        const dropzone = document.getElementById('dropzone');
+        const btn = document.getElementById('obfuscateBtn');
+        const status = document.getElementById('status');
+        const statusText = document.getElementById('statusText');
 
-const dropInput = document.getElementById('dropInput');
-const fileInput = document.getElementById('fileInput');
-const inputArea = document.getElementById('inputArea');
-const outputArea = document.getElementById('outputArea');
-const inputStats = document.getElementById('inputStats');
-const outputStats = document.getElementById('outputStats');
+        let currentFile = null;
+        let currentText = "";
 
-function updateStats(area, statsEl) {
-  const lines = (area.value.match(/\n/g) || []).length + 1;
-  const sizeKB = (new Blob([area.value]).size / 1024).toFixed(2);
-  statsEl.textContent = \`Lines: \${lines} | Size: \${sizeKB} KB\`;
-}
+        dropzone.addEventListener('click', () => fileInput.click());
+        dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('border-amber-300', 'bg-white/5'); });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('border-amber-300', 'bg-white/5'));
+        dropzone.addEventListener('drop', e => {
+            e.preventDefault();
+            dropzone.classList.remove('border-amber-300', 'bg-white/5');
+            if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+        });
 
-function loadFile(file) {
-  if (!file.name.endsWith('.lua')) {
-    alert('Solo archivos .lua por favor');
-    return;
-  }
-  const reader = new FileReader();
-  reader.onload = e => {
-    inputArea.value = e.target.result;
-    updateStats(inputArea, inputStats);
-  };
-  reader.readAsText(file);
-}
+        fileInput.addEventListener('change', e => {
+            if (e.target.files.length) handleFile(e.target.files[0]);
+        });
 
-dropInput.onclick = () => fileInput.click();
-fileInput.onchange = e => {
-  if (e.target.files[0]) loadFile(e.target.files[0]);
-};
+        async function handleFile(file) {
+            if (!file.name.toLowerCase().match(/\.(lua|txt|luau)$/)) {
+                alert('Solo archivos .lua, .txt o .luau');
+                return;
+            }
+            currentFile = file;
+            textInput.value = "Archivo cargado: " + file.name + "\n(Procesando al presionar el botón)";
+            textInput.disabled = true;
+        }
 
-['dragover','dragenter'].forEach(ev => {
-  dropInput.addEventListener(ev, e => {
-    e.preventDefault();
-    dropInput.classList.add('active');
-  });
-});
+        btn.addEventListener('click', async () => {
+            let source = "";
 
-['dragleave','drop'].forEach(ev => {
-  dropInput.addEventListener(ev, e => {
-    e.preventDefault();
-    dropInput.classList.remove('active');
-  });
-});
+            if (currentFile) {
+                try {
+                    source = await currentFile.text();
+                } catch (e) {
+                    alert('Error al leer el archivo');
+                    return;
+                }
+            } else {
+                source = textInput.value.trim();
+            }
 
-dropInput.ondrop = e => {
-  const file = e.dataTransfer.files[0];
-  if (file) loadFile(file);
-};
+            if (!source) {
+                alert('Pega texto o sube un archivo primero');
+                return;
+            }
 
-document.getElementById('obfuscateBtn').onclick = () => {
-  const code = inputArea.value.trim();
-  if (!code) {
-    alert('No hay código para ofuscar');
-    return;
-  }
-  const obfuscated = obfuscateCode(code);
-  outputArea.value = obfuscated;
-  updateStats(outputArea, outputStats);
-};
+            btn.disabled = true;
+            status.classList.remove('hidden');
+            statusText.textContent = 'Ofuscando...';
 
-document.getElementById('copyBtn').onclick = () => {
-  if (!outputArea.value) return;
-  navigator.clipboard.writeText(outputArea.value).then(() => alert('Copiado al portapapeles'));
-};
+            setTimeout(() => {  // Pequeño delay para que se vea la animación
+                const result = obfuscate(source);
 
-document.getElementById('saveBtn').onclick = () => {
-  if (!outputArea.value) return;
-  const blob = new Blob([outputArea.value], {type:'text/plain'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'obfuscated_by_lynox_x_gael.lua';
-  a.click();
-  URL.revokeObjectURL(url);
-};
+                const blob = new Blob([result], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `obf_lynox_x_gael_${Date.now()}.lua`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
 
-document.getElementById('clearBtn').onclick = () => {
-  inputArea.value = '';
-  outputArea.value = '';
-  updateStats(inputArea, inputStats);
-  updateStats(outputArea, outputStats);
-};
-</script>
+                statusText.innerHTML = '✅ Listo • Descargado';
+                btn.disabled = false;
+                currentFile = null;
+                textInput.disabled = false;
+                textInput.value = "";
+                setTimeout(() => status.classList.add('hidden'), 2500);
+            }, 600);
+        });
+    </script>
 </body>
 </html>
