@@ -2,27 +2,48 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>🌐 Mi Dumper Luarmor + GitHub (Personal)</title>
+  <title>🌐 Mi Dumper Total - Luarmor + GitHub + Todos los Dumpers</title>
   <style>
     body { font-family: monospace; background: #0d0d0d; color: #0f0; padding: 20px; margin: 0; }
     h1 { color: #00ff00; text-align: center; }
     input, button, textarea { width: 100%; padding: 12px; margin: 10px 0; font-family: monospace; font-size: 16px; }
     button { background: #00ff00; color: black; font-weight: bold; cursor: pointer; border: none; padding: 15px; }
     button:hover { background: #00cc00; }
-    .info { color: #ffff00; font-size: 14px; }
+    .dumpers { background: #1a1a1a; padding: 15px; border-radius: 8px; margin-top: 20px; }
+    .info { color: #ffff00; }
   </style>
 </head>
 <body>
-  <h1>🌐 Mi Dumper Personal - Luarmor & GitHub</h1>
-  <p class="info">Pega cualquier link de Luarmor o GitHub (blob o raw)</p>
+  <h1>🌐 Mi Dumper Total (Luarmor + GitHub)</h1>
+  <p class="info">Pega link de Luarmor o GitHub (funciona con blob, raw y repos completos)</p>
   
-  <input type="text" id="url" placeholder="Ej: https://api.luarmor.net/files/v4/loaders/809d5c7dc0793246c9ff00a2808c238c.lua" value="">
+  <input type="text" id="url" placeholder="https://api.luarmor.net/... o https://github.com/usuario/repo/blob/main/script.lua" value="">
   
-  <button onclick="dumpFile()">🚀 Dumpear + Descargar Archivo</button>
-  
-  <textarea id="result" rows="25" readonly placeholder="El contenido dumpeado aparecerá aquí..."></textarea>
-  
-  <button onclick="downloadDumped()">📥 Descargar Archivo Dumpeado (.lua)</button>
+  <button onclick="dumpFile()">🚀 DUMPEAR + LIMPIAR</button>
+  <button onclick="beautifyCode()">✨ Beautify (limpiar más)</button>
+  <button onclick="downloadDumped()">📥 DESCARGAR archivo_dumpeado.lua</button>
+
+  <textarea id="result" rows="25" readonly></textarea>
+
+  <!-- === TODOS LOS DUMPERS (agregados aquí) === -->
+  <div class="dumpers">
+    <h2>🔗 TODOS LOS DUMPERS RECOMENDADOS (2026)</h2>
+    <p class="info">Haz clic en cualquiera para abrirlo</p>
+    <ul>
+      <li><a href="https://github.com/Federal9999/Luarmor" target="_blank">1. Federal9999/Luarmor → Mejor para Luarmor real</a></li>
+      <li><a href="https://github.com/hemusuku86/GoonSec" target="_blank">2. GoonSec → Dumper rápido Python (MoonSec/Luarmor)</a></li>
+      <li><a href="https://github.com/0x251/Prometheus-Deobfuscator" target="_blank">3. Prometheus-Deobfuscator (V2 también)</a></li>
+      <li><a href="https://de4lua.art/" target="_blank">4. De4Lua Online (universal)</a></li>
+      <li><a href="https://github.com/PhoenixZeng/LuraphDeobfuscator" target="_blank">5. LuraphDeobfuscator (v11.x antiguas)</a></li>
+      <li><a href="https://github.com/ShufflePerson/De4Lua" target="_blank">6. De4Lua GitHub (CLI)</a></li>
+      <li><a href="https://github.com/atrexus/unluau" target="_blank">7. unluau → Decompilador Luau más potente</a></li>
+      <li><a href="https://luadec.metaworm.site/" target="_blank">8. luadec.metaworm.site (online rápido)</a></li>
+      <li><a href="https://github.com/vurvdev/LuaPro" target="_blank">9. LuaPro (limpiador AST)</a></li>
+      <li><a href="https://github.com/richdentistboy/MoonsecV3Dumper" target="_blank">10. MoonsecV3Dumper</a></li>
+      <li><a href="https://github.com/SixZensED/Lua-Deobfuscator" target="_blank">11. SixZensED (MoonSec V2/IronBrew)</a></li>
+      <li><a href="https://github.com/Lethal-Luka/IronbrewDeobfuscator" target="_blank">12. IronbrewDeobfuscator</a></li>
+    </ul>
+  </div>
 
   <script>
     let dumpedContent = "";
@@ -30,40 +51,45 @@
     async function dumpFile() {
       let url = document.getElementById('url').value.trim();
       const result = document.getElementById('result');
-      result.value = "Cargando y dumpeando...";
+      result.value = "Dumpeando...";
 
-      // === AUTO-CONVERSIÓN GITHUB ===
-      if (url.includes('github.com') && url.includes('/blob/')) {
-        url = url.replace('github.com', 'raw.githubusercontent.com')
-                 .replace('/blob/', '/');
+      // === MEJOR CONVERSIÓN GITHUB (ahora sí funciona todo) ===
+      if (url.includes('github.com')) {
+        if (url.includes('/blob/')) {
+          url = url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+        } else if (url.includes('/tree/') || !url.endsWith('.lua')) {
+          // Si es repo completo, intenta main.lua (lo más común)
+          url = url.replace('github.com', 'raw.githubusercontent.com').replace('/tree/main', '') + '/main.lua';
+        }
       }
 
       try {
-        // Proxy para Luarmor y GitHub
         const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
         const res = await fetch(proxy);
-        
-        if (!res.ok) throw new Error("No se pudo acceder (Luarmor requiere ejecución o key)");
-
         let text = await res.text();
 
-        // === LIMPIEZA BÁSICA (Dump) ===
+        // Limpieza extra para Luarmor y GitHub ofuscados
         text = text.replace(/--\s*ts file was generated at.*?\n/g, '');
         text = text.replace(/makefolder\('static_content_.*?'\)/g, '-- makefolder removido');
 
-        dumpedContent = text;  // Guardamos para descargar
-        result.value = text;
-
+        dumpedContent = text;
+        result.value = text || "Archivo descargado pero vacío (Luarmor pro necesita ejecución)";
       } catch (e) {
-        result.value = "❌ Error: " + e.message + "\n\nPrueba ejecutar el script en Roblox y dumpear manualmente si es Luarmor pro.";
+        result.value = "❌ Error: " + e.message + "\n\nLuarmor pro a veces bloquea. Prueba ejecutar en Roblox primero.";
       }
     }
 
+    function beautifyCode() {
+      if (!dumpedContent) return alert("Primero dumpea");
+      let text = dumpedContent;
+      // Beautify básico JS
+      text = text.replace(/;/g, ';\n').replace(/{ /g, '{\n  ').replace(/ }/g, '\n}');
+      document.getElementById('result').value = text;
+      dumpedContent = text;
+    }
+
     function downloadDumped() {
-      if (!dumpedContent) {
-        alert("Primero dumpea el link");
-        return;
-      }
+      if (!dumpedContent) return alert("Dumpea primero");
       const blob = new Blob([dumpedContent], { type: 'text/plain' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
