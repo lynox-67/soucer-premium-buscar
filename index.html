@@ -2,66 +2,65 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Enviar Scripts y TXT por Webhooks (sin imágenes/videos)</title>
+  <title>Enviar Scripts Lua/TXT con Código Visible + Nombre Original</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; background: #1e1e1e; color: #e0e0e0; }
-    input, button { margin: 10px 0; padding: 8px; }
-    button { background: #5865f2; color: white; border: none; cursor: pointer; }
+    input, button { margin: 10px 0; padding: 10px; font-size: 16px; }
+    button { background: #5865f2; color: white; border: none; cursor: pointer; border-radius: 5px; }
     button:disabled { background: #3f3f3f; }
-    #status { color: #43b581; font-weight: bold; }
-    #error { color: #f04747; }
+    #status { color: #43b581; font-weight: bold; font-size: 16px; }
+    #error { color: #f04747; font-size: 14px; }
     h2 { color: #fff; }
+    label { font-size: 14px; margin-bottom: 5px; display: block; }
   </style>
 </head>
 <body>
-  <h2>Enviar Archivos de Carpeta a Webhooks (solo TXT, LUA, etc. – sin imágenes ni videos)</h2>
+  <h2>Enviar Archivos (Lua/TXT) → Discord con Código Visible + Nombre Original</h2>
   
-  <p>1. Pega las URLs de los webhooks (separadas por coma):</p>
-  <input type="text" id="webhooks" size="90" placeholder="https://discord.com/api/webhooks/ID1/TOKEN1, https://discord.com/api/webhooks/ID2/TOKEN2"><br>
+  <label>1. URLs de Webhooks (separadas por coma):</label>
+  <input type="text" id="webhooks" size="100" placeholder="https://discord.com/api/webhooks/... , https://..."><br>
   
-  <p>2. Selecciona la carpeta completa:</p>
+  <label>2. Selecciona la carpeta con los scripts:</label>
   <input type="file" id="folder" webkitdirectory directory multiple><br>
   
-  <p>3. Delay entre envíos (ms) – recomendado 800–2000 para evitar bans/ratelimits:</p>
-  <input type="number" id="delay" value="1200" min="0" step="100"><br>
+  <label>3. Delay entre envíos (ms) – 1500 recomendado para evitar ratelimit:</label>
+  <input type="number" id="delay" value="1500" min="500" step="100"><br>
   
   <button id="startBtn" onclick="iniciarEnvio()">Comenzar Envío</button>
   <button id="stopBtn" onclick="detenerEnvio()" disabled>Detener Envío</button>
   
-  <p id="status">Listo para empezar...</p>
+  <p id="status">Esperando...</p>
   <p id="error"></p>
 
   <script>
     let enviando = false;
     let archivosPendientes = [];
-    let enviados = new Set(); // Evitar duplicados por nombre de archivo
+    let enviados = new Set(); // Evita duplicados por nombre
     let indexActual = 0;
     let webhooks = [];
-    let delayMs = 1200;
+    let delayMs = 1500;
 
-    // Extensiones permitidas (solo texto/scripts – agrega/quita según necesites)
     const extensionesPermitidas = new Set([
-      '.txt', '.lua', '.json', '.js', '.css', '.html', '.log', '.cfg', '.ini', '.xml'
+      '.txt', '.lua', '.json', '.js', '.cfg', '.ini', '.log'
     ]);
 
     async function iniciarEnvio() {
-      const webhooksInput = document.getElementById('webhooks').value.trim();
-      delayMs = parseInt(document.getElementById('delay').value) || 1200;
+      const webhooksStr = document.getElementById('webhooks').value.trim();
+      delayMs = parseInt(document.getElementById('delay').value) || 1500;
       const folderInput = document.getElementById('folder');
 
-      if (!webhooksInput) return mostrarError('Ingresa al menos un webhook.');
-      webhooks = webhooksInput.split(',').map(u => u.trim()).filter(u => u.startsWith('https://discord.com/api/webhooks/'));
+      if (!webhooksStr) return mostrarError('Ingresa al menos un webhook válido.');
+      webhooks = webhooksStr.split(',').map(u => u.trim()).filter(u => u.startsWith('https://discord.com/api/webhooks/'));
 
-      if (webhooks.length === 0) return mostrarError('Ningún webhook válido.');
+      if (webhooks.length === 0) return mostrarError('Webhooks inválidos.');
       if (folderInput.files.length === 0) return mostrarError('Selecciona una carpeta.');
 
-      // Filtrar solo archivos permitidos y no duplicados
       archivosPendientes = Array.from(folderInput.files).filter(file => {
-        const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+        const ext = (file.name || '').toLowerCase().slice(file.name.lastIndexOf('.'));
         return extensionesPermitidas.has(ext) && !enviados.has(file.name);
       });
 
-      if (archivosPendientes.length === 0) return mostrarError('No hay archivos válidos nuevos (solo txt/lua/etc).');
+      if (archivosPendientes.length === 0) return mostrarError('No hay archivos válidos (txt/lua/etc) nuevos.');
 
       enviando = true;
       document.getElementById('startBtn').disabled = true;
@@ -78,24 +77,36 @@
         const webhookIdx = indexActual % webhooks.length;
         const webhook = webhooks[webhookIdx];
 
-        mostrarStatus(`[${indexActual+1}/${archivosPendientes.length}] Enviando ${file.name} → webhook ${webhookIdx+1}`);
+        mostrarStatus(`[${indexActual+1}/${archivosPendientes.length}] Leyendo y enviando ${file.name}...`);
+
+        // Leer contenido como texto
+        let contenido = '';
+        try {
+          contenido = await file.text();
+        } catch (e) {
+          mostrarError(`No se pudo leer ${file.name}: ${e.message}`);
+          indexActual++;
+          continue;
+        }
 
         const formData = new FormData();
+        // Mensaje con código visible
         formData.append('payload_json', JSON.stringify({
-          content: `**Archivo:** ${file.name}\n**Tamaño:** ${Math.round(file.size / 1024)} KB`
+          content: `**Archivo:** ${file.name}\n\`\`\`lua\n${contenido}\n\`\`\``
         }));
+        // Adjuntar el archivo con SU NOMBRE ORIGINAL
         formData.append('files[]', file);
 
         try {
           const res = await fetch(webhook, { method: 'POST', body: formData });
           if (res.ok) {
             enviados.add(file.name);
-            mostrarStatus(`Éxito: ${file.name} enviado`);
+            mostrarStatus(`Éxito: ${file.name} enviado (con código visible)`);
           } else {
-            mostrarError(`Fallo ${res.status} en ${file.name}`);
+            mostrarError(`Error ${res.status} en ${file.name}`);
           }
         } catch (err) {
-          mostrarError(`Error en ${file.name}: ${err.message}`);
+          mostrarError(`Fallo en ${file.name}: ${err.message}`);
         }
 
         indexActual++;
@@ -105,21 +116,17 @@
       }
 
       if (enviando) {
-        mostrarStatus(`¡Terminado! Enviados ${enviados.size} archivos.`);
+        mostrarStatus(`¡Completado! Enviados ${enviados.size} archivos.`);
       } else {
-        mostrarStatus('Envío detenido manualmente.');
+        mostrarStatus('Envío detenido.');
       }
-      resetBotones();
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('stopBtn').disabled = true;
     }
 
     function detenerEnvio() {
       enviando = false;
-      mostrarStatus('Deteniendo... (esperando envío actual)');
-    }
-
-    function resetBotones() {
-      document.getElementById('startBtn').disabled = false;
-      document.getElementById('stopBtn').disabled = true;
+      mostrarStatus('Deteniendo... (termina el envío actual)');
     }
 
     function mostrarStatus(msg) {
@@ -129,7 +136,6 @@
 
     function mostrarError(msg) {
       document.getElementById('error').textContent = msg;
-      document.getElementById('status').textContent = '';
     }
   </script>
 </body>
