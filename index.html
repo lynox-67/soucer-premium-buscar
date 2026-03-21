@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Enviar Solo Scripts con TitleLabel.Text + Nombre Detectado</title>
+  <title>Enviar Solo Adjuntos (sin código en mensaje) - Fix Error 400</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; background: #1e1e1e; color: #e0e0e0; }
     input, button { margin: 10px 0; padding: 10px; font-size: 16px; }
@@ -15,19 +15,20 @@
   </style>
 </head>
 <body>
-  <h2>Enviar Solo Scripts que tengan "TitleLabel.Text =" (con nombre detectado)</h2>
+  <h2>Enviar Solo Archivos Adjuntos (Fix para Error 400 en TODOS)</h2>
+  <p>Esto envía SOLO el archivo con su nombre original. Mensaje corto para evitar 400.</p>
   
   <label>1. URLs de Webhooks (separadas por coma):</label>
-  <input type="text" id="webhooks" size="100" placeholder="https://discord.com/api/webhooks/... , https://..."><br>
+  <input type="text" id="webhooks" size="100" placeholder="https://discord.com/api/webhooks/..."><br>
   
-  <label>2. Selecciona la carpeta con los scripts:</label>
+  <label>2. Selecciona la carpeta:</label>
   <input type="file" id="folder" webkitdirectory directory multiple><br>
   
-  <label>3. Delay entre envíos (ms) – 1500–3000 recomendado:</label>
-  <input type="number" id="delay" value="2000" min="500" step="100"><br>
+  <label>3. Delay (ms) – pon 3000 o más si falla:</label>
+  <input type="number" id="delay" value="3000" min="1000" step="500"><br>
   
-  <button id="startBtn" onclick="iniciarEnvio()">Comenzar Envío</button>
-  <button id="stopBtn" onclick="detenerEnvio()" disabled>Detener Envío</button>
+  <button id="startBtn" onclick="iniciarEnvio()">Comenzar</button>
+  <button id="stopBtn" onclick="detenerEnvio()" disabled>Detener</button>
   
   <p id="status">Esperando...</p>
   <p id="error"></p>
@@ -38,52 +39,46 @@
     let enviados = new Set();
     let indexActual = 0;
     let webhooks = [];
-    let delayMs = 2000;
+    let delayMs = 3000;
 
     const extensionesPermitidas = new Set(['.txt', '.lua']);
 
     async function iniciarEnvio() {
       const webhooksStr = document.getElementById('webhooks').value.trim();
-      delayMs = parseInt(document.getElementById('delay').value) || 2000;
+      delayMs = parseInt(document.getElementById('delay').value) || 3000;
       const folderInput = document.getElementById('folder');
 
-      if (!webhooksStr) return mostrarError('Ingresa webhooks válidos.');
+      if (!webhooksStr) return mostrarError('Pon webhooks válidos.');
       webhooks = webhooksStr.split(',').map(u => u.trim()).filter(u => u.startsWith('https://discord.com/api/webhooks/'));
 
-      if (webhooks.length === 0) return mostrarError('Ningún webhook válido.');
+      if (webhooks.length === 0) return mostrarError('Webhooks no válidos.');
       if (folderInput.files.length === 0) return mostrarError('Selecciona carpeta.');
 
-      // Filtrar preliminar por extensión
       let candidatos = Array.from(folderInput.files).filter(file => {
         const ext = (file.name || '').toLowerCase().slice(file.name.lastIndexOf('.'));
-        return extensionesPermitidas.has(ext) && !enviados.has(file.name);
+        return extensionesPermitidas.has(ext) && !enviados.has(file.name) && file.size > 0;
       });
 
       archivosPendientes = [];
-      mostrarStatus('Analizando archivos... (buscando TitleLabel.Text = ...)');
+      mostrarStatus('Analizando... Buscando TitleLabel.Text = ...');
 
-      // Analizar cada uno para ver si tiene el patrón
       for (let file of candidatos) {
         try {
-          const contenido = await file.text();
-          const match = contenido.match(/TitleLabel\.Text\s*=\s*["']?([^"'\n\r;]+)["']?/i);
+          const texto = await file.text();
+          const match = texto.match(/TitleLabel\.Text\s*=\s*["']?([^"'\n\r;]+)["']?/i);
           if (match && match[1].trim()) {
-            file.detectedName = match[1].trim(); // Guardamos el nombre detectado
+            file.detectedName = match[1].trim();
             archivosPendientes.push(file);
           }
-        } catch (e) {
-          // Si no se puede leer, lo saltamos silenciosamente
-        }
+        } catch {}
       }
 
-      if (archivosPendientes.length === 0) {
-        return mostrarError('No se encontraron archivos con "TitleLabel.Text = ..."');
-      }
+      if (archivosPendientes.length === 0) return mostrarError('Ningún archivo con TitleLabel.Text = ...');
 
       enviando = true;
       document.getElementById('startBtn').disabled = true;
       document.getElementById('stopBtn').disabled = false;
-      mostrarStatus(`Encontrados ${archivosPendientes.length} scripts válidos. Iniciando...`);
+      mostrarStatus(`Listo: ${archivosPendientes.length} válidos. Enviando...`);
 
       indexActual = 0;
       await procesarEnvio();
@@ -95,34 +90,26 @@
         const webhookIdx = indexActual % webhooks.length;
         const webhook = webhooks[webhookIdx];
 
-        const nombreDetectado = file.detectedName || 'No detectado';
-        mostrarStatus(`[${indexActual+1}/${archivosPendientes.length}] Enviando ${file.name} (Título: ${nombreDetectado})`);
-
-        let contenido = '';
-        try {
-          contenido = await file.text();
-        } catch (e) {
-          mostrarError(`No se pudo leer ${file.name}`);
-          indexActual++;
-          continue;
-        }
+        const nombre = file.detectedName || 'Sin título';
+        mostrarStatus(`[${indexActual+1}/${archivosPendientes.length}] ${file.name} (${nombre})`);
 
         const formData = new FormData();
         formData.append('payload_json', JSON.stringify({
-          content: `**Archivo original:** ${file.name}\n**Título detectado:** ${nombreDetectado}\n\`\`\`lua\n${contenido}\n\`\`\``
+          content: `Script válido: **${file.name}**\nTítulo detectado: ${nombre}\nTamaño: ${Math.round(file.size / 1024)} KB`
         }));
-        formData.append('files[]', file); // Llega con nombre original
+        formData.append('files[0]', file);  // Cambiado a 'files[0]' para compatibilidad estricta
 
         try {
           const res = await fetch(webhook, { method: 'POST', body: formData });
           if (res.ok) {
             enviados.add(file.name);
-            mostrarStatus(`Éxito: ${file.name} enviado (Título: ${nombreDetectado})`);
+            mostrarStatus(`OK: ${file.name} enviado`);
           } else {
-            mostrarError(`Error ${res.status} en ${file.name}`);
+            const errText = await res.text();
+            mostrarError(`Error ${res.status} en ${file.name}: ${errText || 'Bad Request'}`);
           }
         } catch (err) {
-          mostrarError(`Fallo en ${file.name}: ${err.message}`);
+          mostrarError(`Fallo ${file.name}: ${err.message}`);
         }
 
         indexActual++;
@@ -131,11 +118,8 @@
         }
       }
 
-      if (enviando) {
-        mostrarStatus(`¡Terminado! Enviados ${enviados.size} archivos válidos.`);
-      } else {
-        mostrarStatus('Envío detenido.');
-      }
+      if (enviando) mostrarStatus('¡Terminado!');
+      else mostrarStatus('Detenido.');
       document.getElementById('startBtn').disabled = false;
       document.getElementById('stopBtn').disabled = true;
     }
@@ -145,14 +129,8 @@
       mostrarStatus('Deteniendo...');
     }
 
-    function mostrarStatus(msg) {
-      document.getElementById('status').textContent = msg;
-      document.getElementById('error').textContent = '';
-    }
-
-    function mostrarError(msg) {
-      document.getElementById('error').textContent = msg;
-    }
+    function mostrarStatus(msg) { document.getElementById('status').textContent = msg; document.getElementById('error').textContent = ''; }
+    function mostrarError(msg) { document.getElementById('error').textContent = msg; }
   </script>
 </body>
 </html>
