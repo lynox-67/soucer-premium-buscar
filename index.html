@@ -1,117 +1,150 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>BY Lynox Hub - Subidor</title>
-  <style>
-    body { background: #0a001f; color: #e0ccff; font-family: Arial; text-align: center; padding: 30px; }
-    h1 { color: #ffdd99; font-size: 3rem; }
-    button {
-      padding: 18px 40px;
-      margin: 15px;
-      font-size: 1.4rem;
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-    }
-    .start { background: #00ff88; color: black; }
-    .stop { background: #ff4444; color: white; }
-    .status { font-size: 1.5rem; margin: 25px; padding: 20px; background: rgba(0,0,0,0.6); border-radius: 12px; }
-    .log { text-align: left; background: #1a0033; padding: 15px; height: 350px; overflow-y: auto; border-radius: 10px; margin: 20px auto; max-width: 800px; }
-  </style>
+    <meta charset="UTF-8">
+    <title>BY Lynox Hub - Procesador</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0d001a;
+            color: #fff;
+            text-align: center;
+            padding: 50px;
+        }
+        h1 { color: #c79eff; }
+        #drop-zone {
+            border: 4px dashed #b388ff;
+            border-radius: 15px;
+            padding: 60px;
+            margin: 30px auto;
+            width: 70%;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        #drop-zone.dragover {
+            background: #1a0033;
+            border-color: #ffdd99;
+        }
+        button {
+            padding: 15px 40px;
+            font-size: 18px;
+            background: #b388ff;
+            color: black;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        button:hover { background: #ffdd99; }
+        #status { margin-top: 20px; font-size: 18px; }
+    </style>
 </head>
 <body>
-  <h1>BY LYNox HUB</h1>
-  <p>Subidor Automático con Descripción</p>
+    <h1>BY Lynox Hub - Procesador Simple</h1>
+    <p>Arrastra tu carpeta (como ZIP) o haz clic para seleccionarla</p>
 
-  <button class="start" onclick="iniciar()">▶️ INICIAR SUBIDA</button>
-  <button class="stop" onclick="parar()">⏹️ PARAR SUBIDA</button>
+    <div id="drop-zone">
+        Arrastra el ZIP aquí<br>o<br><strong>Haz clic para subir</strong>
+    </div>
 
-  <div class="status" id="status">Listo - Presiona INICIAR</div>
-  <div class="log" id="log">Log iniciado...</div>
+    <input type="file" id="fileInput" accept=".zip" style="display:none;">
+    <button onclick="document.getElementById('fileInput').click()">Seleccionar ZIP</button>
 
-  <script>
-    const WEBHOOKS = [
-      "https://discord.com/api/webhooks/1486122112279380090/j132bUxCqLMKb57s2xrweYmm5JLuNsduZsxB40zW80LpFPypTP8AWbPgtu-KriiUzZO_",
-      "https://discord.com/api/webhooks/1486122086333284384/7o-sx0edLlk-jvvFP1ViZmhReisObyrtTYudUrnSlU0iJg7jgFHQNhOfRm0AEy_8g3nY",
-      "https://discord.com/api/webhooks/1486122104322785390/b91WG6wQAKdjFa8wcl4wBNLvKBJ3mJGCzYF9N_1x0IsKvKYNO4slZgEiFbEnY_Drk0gn",
-      "https://discord.com/api/webhooks/1486122109569728602/zaau7raVP_u89hmesp3ovdPXonqRVOr9zDd6mJB0PexGr7zJTxUoHbBeTuua21ZGJL35",
-      "https://discord.com/api/webhooks/1486122112279380090/j132bUxCqLMKb57s2xrweYmm5JLuNsduZsxB40zW80LpFPypTP8AWbPgtu-KriiUzZO_"
-    ];
+    <div id="status"></div>
 
-    let corriendo = false;
-    let indice = 0;
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('fileInput');
+        const status = document.getElementById('status');
 
-    // Pon aquí los nombres de tus archivos (uno por línea)
-    const archivos = [
-      "Infinite Yield - BY Lynox Hub.lua",
-      "ESP + Aimbot - BY Lynox Hub.lua",
-      "Auto Grap - BY Lynox Hub.lua",
-      "Semi Steal - BY Lynox Hub.lua",
-      "FPS Killer - BY Lynox Hub.lua",
-      "Server Joiner - BY Lynox Hub.lua"
-      // Agrega más aquí abajo:
-    ];
+        const WATERMARK = `-- ╔════════════════════════════════════════════════════════════╗
+-- ║                  BY Lynox Hub                              ║
+-- ║            https://discord.gg/q8NEM7pPrW                   ║
+-- ║       Scripts, Leaks & More → Join the Hub Now!            ║
+-- ╚════════════════════════════════════════════════════════════╝
 
-    function getStickerYDesc(nombre) {
-      const n = nombre.toLowerCase();
-      if (n.includes("esp")) return ["👁️", "ESP - Muestra jugadores a través de paredes"];
-      if (n.includes("aimbot")) return ["🎯", "Aimbot - Apunta automáticamente"];
-      if (n.includes("grap")) return ["🪝", "Auto Grap - Agarra objetos"];
-      if (n.includes("steal")) return ["💰", "Stealer - Roba información"];
-      if (n.includes("semi")) return ["🪙", "Semi Steal"];
-      if (n.includes("hub") || n.includes("menu")) return ["📋", "Hub / Menú completo"];
-      if (n.includes("fps")) return ["💥", "FPS Killer"];
-      if (n.includes("joiner")) return ["🚪", "Joiner - Se une a servidores"];
-      return ["📜", "Script optimizado"];
-    }
+`;
 
-    function agregarLog(texto) {
-      const log = document.getElementById('log');
-      log.innerHTML += texto + "<br>";
-      log.scrollTop = log.scrollHeight;
-    }
+        // Drag and Drop
+        dropZone.addEventListener('dragover', e => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
 
-    async function procesarArchivo(i) {
-      if (!corriendo || i >= archivos.length) {
-        document.getElementById('status').innerHTML = "✅ Subida terminada o detenida";
-        return;
-      }
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) handleFiles(fileInput.files);
+        });
 
-      const archivo = archivos[i];
-      const [emoji, desc] = getStickerYDesc(archivo);
-      const webhook = WEBHOOKS[i % WEBHOOKS.length];
+        async function handleFiles(files) {
+            const file = files[0];
+            if (!file || !file.name.endsWith('.zip')) {
+                status.innerHTML = "❌ Solo se aceptan archivos .zip";
+                return;
+            }
 
-      // 1. Enviar descripción
-      await fetch(webhook, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: `**${emoji} ${archivo}**\n\n📌 Para qué sirve:\n${desc}\n\n🔗 https://discord.gg/q8NEM7pPrW` })
-      });
+            status.innerHTML = "Procesando... espera un momento 🔥";
 
-      agregarLog(`📝 Descripción enviada → ${archivo}`);
+            const zip = new JSZip();
+            const newZip = new JSZip();
 
-      // 2. Esperar y enviar archivo (simulado porque HTML no puede subir automáticamente)
-      setTimeout(() => {
-        agregarLog(`📤 Archivo enviado → ${archivo}`);
-        procesarArchivo(i + 1);
-      }, 7000);
-    }
+            try {
+                const content = await file.arrayBuffer();
+                const loadedZip = await zip.loadAsync(content);
 
-    function iniciar() {
-      if (corriendo) return;
-      corriendo = true;
-      indice = 0;
-      document.getElementById('status').innerHTML = "🚀 Subida en progreso...";
-      agregarLog("--- Iniciando subida ---");
-      procesarArchivo(0);
-    }
+                for (const [path, entry] of Object.entries(loadedZip.files)) {
+                    if (entry.dir) continue;
 
-    function parar() {
-      corriendo = false;
-      document.getElementById('status').innerHTML = "⏹️ Subida detenida manualmente";
-      agregarLog("--- Subida detenida por el usuario ---");
-    }
-  </script>
+                    const data = await entry.async("uint8array");
+                    const ext = path.split('.').pop().toLowerCase();
+                    let newPath = path;
+
+                    // Renombrar archivo
+                    const dir = path.substring(0, path.lastIndexOf('/') + 1);
+                    let name = path.substring(path.lastIndexOf('/') + 1);
+                    const base = name.substring(0, name.lastIndexOf('.'));
+                    const extension = name.substring(name.lastIndexOf('.'));
+                    name = `${base} - BY Lynox Hub${extension}`;
+                    newPath = dir + name;
+
+                    if (['lua', 'luau', 'txt'].includes(ext)) {
+                        let text = new TextDecoder().decode(data);
+                        // Eliminar comentarios iniciales
+                        const lines = text.split('\n');
+                        let i = 0;
+                        while (i < lines.length && i < 50) {
+                            const trimmed = lines[i].trim();
+                            if (trimmed && !trimmed.startsWith('--')) break;
+                            i++;
+                        }
+                        text = lines.slice(i).join('\n');
+                        text = WATERMARK + text;
+                        newZip.file(newPath, text);
+                    } else {
+                        newZip.file(newPath, data);
+                    }
+                }
+
+                // Generar y descargar ZIP
+                const blob = await newZip.generateAsync({type: "blob"});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = "Procesado_BY_Lynox_Hub.zip";
+                a.click();
+
+                status.innerHTML = "✅ ¡Listo! Archivo descargado con tu marca y renombrado.";
+
+            } catch (err) {
+                status.innerHTML = "❌ Error al procesar el ZIP";
+                console.error(err);
+            }
+        }
+    </script>
 </body>
 </html>
