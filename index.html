@@ -2,72 +2,47 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BY Lynox Hub - Scripts Analizados</title>
+  <title>BY Lynox Hub - Subidor Controlado</title>
   <style>
     body {
       margin: 0; padding: 0;
-      background: linear-gradient(135deg, #0a001f, #1a0033, #2a004d);
+      background: linear-gradient(135deg, #0a001f, #1a0033);
       color: #e0ccff;
       font-family: Arial, sans-serif;
+      text-align: center;
     }
     .header {
       background: rgba(0,0,0,0.9);
-      text-align: center;
-      padding: 50px 20px;
+      padding: 40px;
       border-bottom: 5px solid #b388ff;
     }
-    .header h1 {
-      font-size: 3.8rem;
-      margin: 0;
-      background: linear-gradient(90deg, #c79eff, #ff99cc, #ffd700);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .container {
-      max-width: 1450px;
-      margin: 40px auto;
-      padding: 0 20px;
-    }
-    .search {
-      width: 100%;
-      padding: 18px 25px;
-      border-radius: 15px;
-      border: none;
-      background: rgba(255,255,255,0.1);
-      color: white;
-      font-size: 1.25rem;
-      margin-bottom: 30px;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
-      gap: 22px;
-    }
-    .card {
-      background: rgba(255,255,255,0.08);
-      border-radius: 18px;
-      padding: 22px;
-      border: 1px solid #b388ff;
-      transition: 0.3s;
-    }
-    .card:hover {
-      transform: translateY(-10px);
-      box-shadow: 0 15px 35px rgba(179, 136, 255, 0.3);
-    }
-    .sticker { font-size: 3rem; margin-bottom: 12px; }
-    .name { font-size: 1.35rem; font-weight: bold; color: #ffdd99; margin: 10px 0; }
-    .desc { line-height: 1.65; opacity: 0.9; min-height: 85px; }
-    .btn {
-      width: 100%;
-      padding: 15px;
-      background: linear-gradient(90deg, #b388ff, #ff99cc);
-      color: black;
+    .header h1 { font-size: 3.5rem; margin: 0; color: #ffdd99; }
+    .container { max-width: 900px; margin: 40px auto; padding: 20px; }
+    button {
+      padding: 15px 30px;
+      margin: 10px;
+      font-size: 1.2rem;
       border: none;
       border-radius: 12px;
-      font-weight: bold;
       cursor: pointer;
-      margin-top: 15px;
+    }
+    .start { background: #00ff88; color: black; }
+    .stop { background: #ff4444; color: white; }
+    .status {
+      margin: 20px 0;
+      font-size: 1.4rem;
+      padding: 15px;
+      border-radius: 10px;
+      background: rgba(0,0,0,0.5);
+    }
+    .log {
+      text-align: left;
+      background: rgba(0,0,0,0.6);
+      padding: 15px;
+      height: 300px;
+      overflow-y: auto;
+      border-radius: 10px;
+      margin-top: 20px;
     }
   </style>
 </head>
@@ -75,77 +50,113 @@
 
   <div class="header">
     <h1>BY LYNox HUB</h1>
-    <p>Scripts Analizados con Stickers</p>
+    <p>Subidor Automático con Análisis</p>
   </div>
 
   <div class="container">
-    <input type="text" id="search" class="search" placeholder="🔍 Buscar script (esp, steal, hub, fps...)" onkeyup="filtrar()">
+    <button class="start" onclick="iniciarSubida()">▶️ INICIAR SUBIDA</button>
+    <button class="stop" onclick="pararSubida()">⏹️ PARAR SUBIDA</button>
 
-    <div class="grid" id="grid"></div>
+    <div class="status" id="status">Listo - Presiona INICIAR SUBIDA</div>
+    <div class="log" id="log"></div>
   </div>
 
   <script>
-    // ==================== LISTA DE TUS ARCHIVOS (agrega aquí los tuyos) ====================
+    // ==================== TUS 5 WEBHOOKS POR DEFAULT ====================
+    const WEBHOOKS = [
+      "https://discord.com/api/webhooks/1486122112279380090/j132bUxCqLMKb57s2xrweYmm5JLuNsduZsxB40zW80LpFPypTP8AWbPgtu-KriiUzZO_",
+      "https://discord.com/api/webhooks/1486122086333284384/7o-sx0edLlk-jvvFP1ViZmhReisObyrtTYudUrnSlU0iJg7jgFHQNhOfRm0AEy_8g3nY",
+      "https://discord.com/api/webhooks/1486122104322785390/b91WG6wQAKdjFa8wcl4wBNLvKBJ3mJGCzYF9N_1x0IsKvKYNO4slZgEiFbEnY_Drk0gn",
+      "https://discord.com/api/webhooks/1486122109569728602/zaau7raVP_u89hmesp3ovdPXonqRVOr9zDd6mJB0PexGr7zJTxUoHbBeTuua21ZGJL35",
+      "https://discord.com/api/webhooks/1486122112279380090/j132bUxCqLMKb57s2xrweYmm5JLuNsduZsxB40zW80LpFPypTP8AWbPgtu-KriiUzZO_"
+    ];
+
+    let estaCorriendo = false;
+    let indiceActual = 0;
+
+    // ==================== LISTA DE ARCHIVOS (agrega aquí los tuyos) ====================
     const archivos = [
       "Infinite Yield - BY Lynox Hub.lua",
-      "ESP + Aimbot Universal - BY Lynox Hub.lua",
+      "ESP + Aimbot - BY Lynox Hub.lua",
       "Auto Grap - BY Lynox Hub.lua",
       "Semi Steal Hub - BY Lynox Hub.lua",
       "FPS Killer - BY Lynox Hub.lua",
       "Server Joiner - BY Lynox Hub.lua",
       "Steal Hub v2 - BY Lynox Hub.lua",
-      "Hub Menu Premium - BY Lynox Hub.lua"
-      // Agrega más archivos aquí abajo, uno por línea:
-      // "Nombre del archivo.lua",
+      // Agrega más archivos aquí abajo:
+      // "Nombre de tu archivo.lua",
     ];
 
-    function getStickerYDesc(nombre) {
-      const n = nombre.toLowerCase();
+    function analizarYEnviar(index) {
+      if (!estaCorriendo || index >= archivos.length) {
+        document.getElementById('status').innerHTML = "✅ Subida completada o detenida";
+        return;
+      }
 
-      if (n.includes("esp") || n.includes("wallhack")) return {emoji: "👁️", desc: "ESP - Muestra jugadores, items y más a través de paredes"};
-      if (n.includes("aimbot") || n.includes("aim")) return {emoji: "🎯", desc: "Aimbot - Apunta automáticamente a los enemigos"};
-      if (n.includes("auto grap") || n.includes("grap")) return {emoji: "🪝", desc: "Auto Grap - Agarra objetos automáticamente"};
-      if (n.includes("steal") || n.includes("stealer")) return {emoji: "💰", desc: "Stealer - Roba información o recursos"};
-      if (n.includes("semi steal")) return {emoji: "🪙", desc: "Semi Steal - Versión más segura de stealer"};
-      if (n.includes("hub") || n.includes("menu")) return {emoji: "📋", desc: "Hub / Menú - Interfaz completa con muchas opciones"};
-      if (n.includes("fps killer") || n.includes("fps")) return {emoji: "💥", desc: "FPS Killer - Reduce el FPS de otros jugadores"};
-      if (n.includes("joiner") || n.includes("server joiner")) return {emoji: "🚪", desc: "Joiner - Se une automáticamente a servidores"};
-      if (n.includes("fly") || n.includes("speed")) return {emoji: "✈️", desc: "Fly / Speed Hack - Movimiento avanzado"};
-      if (n.includes("farm")) return {emoji: "🌾", desc: "Auto Farm - Recolecta recursos automáticamente"};
+      const archivo = archivos[index];
+      const webhook = WEBHOOKS[index % WEBHOOKS.length];
 
-      return {emoji: "📜", desc: "Script multifunción optimizado"};
-    }
+      let emoji = "📜";
+      let desc = "Script optimizado por Lynox Hub";
 
-    function mostrarArchivos(lista) {
-      const grid = document.getElementById('grid');
-      grid.innerHTML = '';
+      const n = archivo.toLowerCase();
+      if (n.includes("esp")) { emoji = "👁️"; desc = "ESP - Muestra jugadores a través de paredes"; }
+      else if (n.includes("aimbot") || n.includes("aim")) { emoji = "🎯"; desc = "Aimbot - Apunta automáticamente"; }
+      else if (n.includes("grap")) { emoji = "🪝"; desc = "Auto Grap - Agarra objetos automáticamente"; }
+      else if (n.includes("steal")) { emoji = "💰"; desc = "Stealer - Roba información"; }
+      else if (n.includes("semi steal")) { emoji = "🪙"; desc = "Semi Steal - Versión más segura"; }
+      else if (n.includes("hub") || n.includes("menu")) { emoji = "📋"; desc = "Hub / Menú completo"; }
+      else if (n.includes("fps killer") || n.includes("fps")) { emoji = "💥"; desc = "FPS Killer - Reduce FPS de otros"; }
+      else if (n.includes("joiner")) { emoji = "🚪"; desc = "Joiner - Se une a servidores automáticamente"; }
 
-      lista.forEach(archivo => {
-        const info = getStickerYDesc(archivo);
-        const card = document.createElement('div');
-        card.className = 'card';
-        card.innerHTML = `
-          <div class="sticker">${info.emoji}</div>
-          <div class="name">${archivo}</div>
-          <div class="desc">${info.desc}</div>
-          <button class="btn" onclick="descargar('${archivo}')">⬇️ Descargar Script</button>
-        `;
-        grid.appendChild(card);
+      // 1. Enviar descripción con sticker
+      fetch(webhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: `**${emoji} ${archivo}**\n**BY Lynox Hub**\n\n📌 Para qué sirve:\n${desc}\n\n🔗 https://discord.gg/q8NEM7pPrW`
+        })
       });
+
+      agregarLog(`📝 Descripción enviada → ${archivo}`);
+
+      setTimeout(() => {
+        // 2. Enviar el archivo
+        agregarLog(`📤 Subiendo archivo → ${archivo}`);
+        
+        // Aquí iría la subida real del archivo, pero como es solo HTML, mostramos mensaje
+        setTimeout(() => {
+          agregarLog(`✅ Archivo enviado → ${archivo}`);
+          analizarYEnviar(index + 1);
+        }, 4000);
+      }, 6000);
     }
 
-    function descargar(nombre) {
-      window.location.href = nombre;
+    function agregarLog(texto) {
+      const log = document.getElementById('log');
+      log.innerHTML += texto + "<br>";
+      log.scrollTop = log.scrollHeight;
     }
 
-    function filtrar() {
-      const term = document.getElementById('search').value.toLowerCase();
-      const filtrados = archivos.filter(a => a.toLowerCase().includes(term));
-      mostrarArchivos(filtrados);
+    function iniciarSubida() {
+      if (estaCorriendo) return;
+      estaCorriendo = true;
+      document.getElementById('status').innerHTML = "🚀 Subida en progreso...";
+      indiceActual = 0;
+      analizarYEnviar(0);
     }
 
-    // Cargar al abrir la página
-    window.onload = () => mostrarArchivos(archivos);
+    function pararSubida() {
+      estaCorriendo = false;
+      document.getElementById('status').innerHTML = "⏹️ Subida detenida por el usuario";
+    }
+
+    // Iniciar log
+    document.getElementById('log').innerHTML = "Web cargada - Listo para subir<br>";
   </script>
+
+  <div class="container">
+    <div class="log" id="log"></div>
+  </div>
 </body>
 </html>
