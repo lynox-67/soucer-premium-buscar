@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Envío de Scripts - Un Apartado por Webhook (Corregido)</title>
+  <title>Enviar Archivos a Webhooks - Solo Adjunto</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -12,7 +12,7 @@
       padding: 20px;
     }
     .container {
-      max-width: 1000px;
+      max-width: 900px;
       margin: 0 auto;
       background: #25253a;
       border-radius: 16px;
@@ -22,20 +22,18 @@
     h1 {
       text-align: center;
       color: #7289da;
-      margin-bottom: 25px;
     }
     .webhook-list {
-      margin-bottom: 20px;
+      margin: 20px 0;
     }
     .webhook-item {
       background: #1e1e2e;
-      padding: 12px 15px;
+      padding: 12px;
       border-radius: 10px;
       margin-bottom: 10px;
       display: flex;
-      align-items: center;
       gap: 10px;
-      border: 1px solid #5865f2;
+      align-items: center;
     }
     .webhook-item input {
       flex: 1;
@@ -44,21 +42,10 @@
       border: none;
       padding: 10px;
       border-radius: 8px;
-      font-size: 15px;
-    }
-    .add-btn {
-      background: #43b581;
-      color: white;
-      border: none;
-      padding: 10px 16px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 15px;
     }
     label {
       display: block;
-      margin: 18px 0 8px;
-      font-weight: 500;
+      margin: 15px 0 8px;
       color: #b9bbbe;
     }
     input[type="file"], input[type="number"] {
@@ -66,13 +53,13 @@
       padding: 12px;
       background: #1e1e2e;
       color: white;
-      border: 1px solid #5865f2;
       border-radius: 8px;
+      border: 1px solid #5865f2;
     }
     button {
       width: 100%;
       padding: 14px;
-      margin: 12px 0 8px;
+      margin: 10px 0;
       border: none;
       border-radius: 10px;
       font-size: 17px;
@@ -80,18 +67,16 @@
       cursor: pointer;
     }
     .start-btn { background: #5865f2; color: white; }
-    .start-btn:hover { background: #4752c4; }
     .stop-btn { background: #f04747; color: white; }
-    .stop-btn:hover { background: #d13f3f; }
+    .add-btn { background: #43b581; color: white; padding: 10px; border-radius: 8px; border: none; cursor: pointer; }
 
     .status {
       margin-top: 20px;
       padding: 16px;
       background: #1e1e2e;
       border-radius: 10px;
+      min-height: 60px;
       font-size: 16px;
-      min-height: 70px;
-      line-height: 1.6;
     }
     .success { color: #43b581; }
     .error { color: #f04747; }
@@ -99,32 +84,31 @@
 </head>
 <body>
   <div class="container">
-    <h1>📤 Envío de Scripts - Un Apartado por Webhook</h1>
+    <h1>📤 Solo Enviar Archivos (Sin Texto)</h1>
     
-    <label>1. Webhooks (uno por apartado)</label>
+    <label>1. Webhooks (uno por línea / apartado)</label>
     <div class="webhook-list" id="webhookList"></div>
     <button class="add-btn" onclick="agregarWebhook()">+ Agregar Webhook</button>
 
-    <label>2. Selecciona la carpeta con los scripts</label>
+    <label>2. Selecciona la carpeta con los archivos</label>
     <input type="file" id="folder" webkitdirectory directory multiple>
 
-    <label>3. Delay entre envíos (ms) - Recomendado 2500+</label>
-    <input type="number" id="delay" value="2800" min="1000" step="200">
+    <label>3. Delay entre envíos (ms)</label>
+    <input type="number" id="delay" value="2500" min="1000" step="200">
 
     <button class="start-btn" id="startBtn" onclick="iniciarEnvio()">🚀 COMENZAR ENVÍO</button>
     <button class="stop-btn" id="stopBtn" onclick="detenerEnvio()" disabled>⏹ DETENER ENVÍO</button>
 
-    <div class="status" id="status">Listo • Agrega webhooks y selecciona la carpeta</div>
+    <div class="status" id="status">Listo • Solo se enviarán los archivos adjuntos (sin texto)</div>
   </div>
 
   <script>
-    // Agregar apartado de webhook
-    function agregarWebhook(valor = '') {
+    function agregarWebhook() {
       const list = document.getElementById('webhookList');
       const div = document.createElement('div');
       div.className = 'webhook-item';
       div.innerHTML = `
-        <input type="text" value="${valor}" placeholder="https://discord.com/api/webhooks/...">
+        <input type="text" placeholder="https://discord.com/api/webhooks/...">
         <button onclick="this.parentElement.remove()" style="background:#f04747;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;">Eliminar</button>
       `;
       list.appendChild(div);
@@ -133,7 +117,7 @@
     function obtenerWebhooks() {
       return Array.from(document.querySelectorAll('.webhook-item input'))
                   .map(input => input.value.trim())
-                  .filter(url => url && url.startsWith('https://discord.com/api/webhooks/'));
+                  .filter(url => url.startsWith('https://discord.com/api/webhooks/'));
     }
 
     let enviando = false;
@@ -141,54 +125,40 @@
     let enviados = new Set();
     let indexActual = 0;
     let webhooks = [];
-    let delayMs = 2800;
+    let delayMs = 2500;
 
     async function iniciarEnvio() {
       webhooks = obtenerWebhooks();
-      delayMs = parseInt(document.getElementById('delay').value) || 2800;
+      delayMs = parseInt(document.getElementById('delay').value) || 2500;
 
-      if (webhooks.length === 0) return mostrarError('Agrega al menos un webhook válido.');
+      if (webhooks.length === 0) return mostrarError('Agrega al menos un webhook.');
 
       const folderInput = document.getElementById('folder');
       if (folderInput.files.length === 0) return mostrarError('Selecciona una carpeta.');
 
-      let candidatos = Array.from(folderInput.files).filter(file => 
+      // Solo archivos .txt y .lua
+      archivosPendientes = Array.from(folderInput.files).filter(file => 
         (file.name.endsWith('.txt') || file.name.endsWith('.lua')) && 
         file.size > 0 && !enviados.has(file.name)
       );
 
-      archivosPendientes = [];
-      mostrarStatus(`Analizando ${candidatos.length} archivos...`);
-
-      for (let file of candidatos) {
-        try {
-          const texto = await file.text();
-          const match = texto.match(/TitleLabel\.Text\s*=\s*["']?([^"'\n\r;]+)["']?/i);
-          if (match && match[1].trim()) {
-            file.detectedName = match[1].trim();
-            archivosPendientes.push(file);
-          }
-        } catch (e) {}
-      }
-
       if (archivosPendientes.length === 0) 
-        return mostrarError('No se encontraron archivos con TitleLabel.Text = ...');
+        return mostrarError('No hay archivos .txt o .lua en la carpeta.');
 
-      // Reparto equitativo CORREGIDO
+      // Reparto equitativo
       archivosPendientes = repartirEquitativamente(archivosPendientes, webhooks.length);
 
       enviando = true;
       document.getElementById('startBtn').disabled = true;
       document.getElementById('stopBtn').disabled = false;
 
-      mostrarStatus(`✅ ${archivosPendientes.length} scripts listos\nRepartiendo entre ${webhooks.length} webhooks...`);
+      mostrarStatus(`Preparando ${archivosPendientes.length} archivos...\nSolo se enviarán los adjuntos (sin texto)`);
 
       indexActual = 0;
       await procesarEnvio();
     }
 
     function repartirEquitativamente(archivos, numWebhooks) {
-      if (numWebhooks <= 1) return archivos;
       const grupos = Array.from({length: numWebhooks}, () => []);
       archivos.forEach((archivo, i) => {
         grupos[i % numWebhooks].push(archivo);
@@ -201,29 +171,26 @@
 
       while (enviando && indexActual < total) {
         const file = archivosPendientes[indexActual];
-        
-        // Cálculo correcto del webhook
         const webhookIndex = indexActual % webhooks.length;
         const webhook = webhooks[webhookIndex];
 
-        const titulo = file.detectedName;
-
-        mostrarStatus(`Enviando ${indexActual + 1}/${total} → ${titulo} (Webhook ${webhookIndex + 1})`);
+        mostrarStatus(`Enviando archivo ${indexActual + 1}/${total} → ${file.name} (Webhook ${webhookIndex + 1})`);
 
         const formData = new FormData();
-        formData.append('payload_json', JSON.stringify({ content: titulo }));
+        // Sin texto → solo el archivo
+        formData.append('payload_json', JSON.stringify({ content: "" }));
         formData.append('files[0]', file);
 
         try {
           const res = await fetch(webhook, { method: 'POST', body: formData });
           if (res.ok) {
             enviados.add(file.name);
-            mostrarStatus(`✅ Enviado correctamente: ${titulo} (Webhook ${webhookIndex + 1})`, 'success');
+            mostrarStatus(`✅ Archivo enviado: ${file.name}`, 'success');
           } else {
-            mostrarError(`Error ${res.status} en ${file.name} (Webhook ${webhookIndex + 1})`);
+            mostrarError(`Error ${res.status} al enviar ${file.name}`);
           }
         } catch (err) {
-          mostrarError(`Error de conexión en ${file.name}`);
+          mostrarError(`Error de conexión al enviar ${file.name}`);
         }
 
         indexActual++;
@@ -232,7 +199,7 @@
         }
       }
 
-      if (enviando) mostrarStatus(`¡Terminado!\nSe enviaron ${enviados.size} archivos.`, 'success');
+      if (enviando) mostrarStatus(`¡Terminado!\nSe enviaron ${enviados.size} archivos solo como adjuntos.`, 'success');
       else mostrarStatus('Envío detenido.');
 
       document.getElementById('startBtn').disabled = false;
@@ -247,7 +214,9 @@
     function mostrarStatus(texto, tipo = '') {
       const el = document.getElementById('status');
       el.innerHTML = texto.replace(/\n/g, '<br>');
-      el.className = 'status ' + (tipo === 'success' ? 'success' : tipo === 'error' ? 'error' : '');
+      if (tipo === 'success') el.className = 'status success';
+      else if (tipo === 'error') el.className = 'status error';
+      else el.className = 'status';
     }
 
     function mostrarError(texto) {
@@ -256,7 +225,7 @@
       el.className = 'status error';
     }
 
-    // Iniciar con un webhook vacío
+    // Iniciar con un webhook
     window.onload = () => agregarWebhook();
   </script>
 </body>
