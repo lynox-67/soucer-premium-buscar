@@ -12,24 +12,36 @@
     #error { color: #f04747; font-size: 14px; }
     h2 { color: #fff; }
     label { font-size: 14px; margin-bottom: 5px; display: block; }
+    .webhook-input { margin-bottom: 8px; }
   </style>
 </head>
 <body>
   <h2>Enviar Solo el Título Detectado + Archivo Adjunto</h2>
   <p>Mensaje limpio: solo el título (sin "Script válido", sin tamaño, sin código).</p>
-  
-  <label>1. URLs de Webhooks (separadas por coma):</label>
-  <input type="text" id="webhooks" size="100" placeholder="https://discord.com/api/webhooks/..."><br>
-  
+ 
+  <label><strong>1. URLs de Webhooks (una por línea - ahora soporta hasta 10):</strong></label>
+  <div id="webhookContainer">
+    <input type="text" class="webhook-input" placeholder="https://discord.com/api/webhooks/..." style="width:100%;"><br>
+    <input type="text" class="webhook-input" placeholder="https://discord.com/api/webhooks/..." style="width:100%;"><br>
+    <input type="text" class="webhook-input" placeholder="https://discord.com/api/webhooks/..." style="width:100%;"><br>
+    <input type="text" class="webhook-input" placeholder="https://discord.com/api/webhooks/..." style="width:100%;"><br>
+    <input type="text" class="webhook-input" placeholder="https://discord.com/api/webhooks/..." style="width:100%;"><br>
+    <input type="text" class="webhook-input" placeholder="https://discord.com/api/webhooks/..." style="width:100%;"><br>
+    <input type="text" class="webhook-input" placeholder="https://discord.com/api/webhooks/..." style="width:100%;"><br>
+    <input type="text" class="webhook-input" placeholder="https://discord.com/api/webhooks/..." style="width:100%;"><br>
+    <input type="text" class="webhook-input" placeholder="https://discord.com/api/webhooks/..." style="width:100%;"><br>
+    <input type="text" class="webhook-input" placeholder="https://discord.com/api/webhooks/..." style="width:100%;">
+  </div>
+ 
   <label>2. Selecciona la carpeta con los scripts:</label>
   <input type="file" id="folder" webkitdirectory directory multiple><br>
-  
-  <label>3. Delay entre envíos (ms) – 3000+ recomendado para evitar errores:</label>
+ 
+  <label>3. Delay entre envíos (ms) – 3000+ recomendado:</label>
   <input type="number" id="delay" value="3000" min="1000" step="500"><br>
-  
+ 
   <button id="startBtn" onclick="iniciarEnvio()">Comenzar Envío</button>
   <button id="stopBtn" onclick="detenerEnvio()" disabled>Detener Envío</button>
-  
+ 
   <p id="status">Esperando...</p>
   <p id="error"></p>
 
@@ -40,19 +52,25 @@
     let indexActual = 0;
     let webhooks = [];
     let delayMs = 3000;
-
     const extensionesPermitidas = new Set(['.txt', '.lua']);
 
     async function iniciarEnvio() {
-      const webhooksStr = document.getElementById('webhooks').value.trim();
       delayMs = parseInt(document.getElementById('delay').value) || 3000;
+
+      // Obtener todos los webhooks de los inputs
+      const inputs = document.querySelectorAll('.webhook-input');
+      webhooks = Array.from(inputs)
+        .map(input => input.value.trim())
+        .filter(url => url.startsWith('https://discord.com/api/webhooks/'));
+
+      if (webhooks.length === 0) {
+        return mostrarError('Ingresa al menos un webhook válido.');
+      }
+
       const folderInput = document.getElementById('folder');
-
-      if (!webhooksStr) return mostrarError('Ingresa al menos un webhook.');
-      webhooks = webhooksStr.split(',').map(u => u.trim()).filter(u => u.startsWith('https://discord.com/api/webhooks/'));
-
-      if (webhooks.length === 0) return mostrarError('Webhooks inválidos.');
-      if (folderInput.files.length === 0) return mostrarError('Selecciona una carpeta.');
+      if (folderInput.files.length === 0) {
+        return mostrarError('Selecciona una carpeta.');
+      }
 
       let candidatos = Array.from(folderInput.files).filter(file => {
         const ext = (file.name || '').toLowerCase().slice(file.name.lastIndexOf('.'));
@@ -70,10 +88,12 @@
             file.detectedName = match[1].trim();
             archivosPendientes.push(file);
           }
-        } catch {}
+        } catch (e) {}
       }
 
-      if (archivosPendientes.length === 0) return mostrarError('No se encontraron títulos con TitleLabel.Text = ...');
+      if (archivosPendientes.length === 0) {
+        return mostrarError('No se encontraron títulos con TitleLabel.Text = ...');
+      }
 
       enviando = true;
       document.getElementById('startBtn').disabled = true;
@@ -89,15 +109,15 @@
         const file = archivosPendientes[indexActual];
         const webhookIdx = indexActual % webhooks.length;
         const webhook = webhooks[webhookIdx];
-
         const titulo = file.detectedName || 'Sin título';
+
         mostrarStatus(`[${indexActual+1}/${archivosPendientes.length}] Enviando ${file.name} → ${titulo}`);
 
         const formData = new FormData();
         formData.append('payload_json', JSON.stringify({
-          content: titulo  // SOLO el título detectado, nada más
+          content: titulo
         }));
-        formData.append('files[0]', file);  // Adjunto con nombre original
+        formData.append('files[0]', file);
 
         try {
           const res = await fetch(webhook, { method: 'POST', body: formData });
@@ -120,6 +140,7 @@
 
       if (enviando) mostrarStatus('¡Terminado! Todos enviados.');
       else mostrarStatus('Envío detenido.');
+
       document.getElementById('startBtn').disabled = false;
       document.getElementById('stopBtn').disabled = true;
     }
@@ -129,8 +150,14 @@
       mostrarStatus('Deteniendo...');
     }
 
-    function mostrarStatus(msg) { document.getElementById('status').textContent = msg; document.getElementById('error').textContent = ''; }
-    function mostrarError(msg) { document.getElementById('error').textContent = msg; }
+    function mostrarStatus(msg) {
+      document.getElementById('status').textContent = msg;
+      document.getElementById('error').textContent = '';
+    }
+
+    function mostrarError(msg) {
+      document.getElementById('error').textContent = msg;
+    }
   </script>
 </body>
 </html>
