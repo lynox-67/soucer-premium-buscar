@@ -2,15 +2,9 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>BY Lynox Hub - Procesador</title>
+    <title>BY Lynox Hub - Procesador de Carpeta</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #0d001a;
-            color: #fff;
-            text-align: center;
-            padding: 50px;
-        }
+        body { font-family: Arial; background: #0d001a; color: #fff; text-align: center; padding: 40px; }
         h1 { color: #c79eff; }
         #drop-zone {
             border: 4px dashed #b388ff;
@@ -18,45 +12,36 @@
             padding: 60px;
             margin: 30px auto;
             width: 70%;
-            font-size: 20px;
+            font-size: 22px;
             cursor: pointer;
         }
-        #drop-zone.dragover {
-            background: #1a0033;
-            border-color: #ffdd99;
-        }
-        button {
-            padding: 15px 40px;
-            font-size: 18px;
-            background: #b388ff;
-            color: black;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-        }
-        button:hover { background: #ffdd99; }
-        #status { margin-top: 20px; font-size: 18px; }
+        #drop-zone.dragover { background: #1a0033; border-color: #ffdd99; }
+        button { padding: 12px 30px; font-size: 18px; margin: 10px; border: none; border-radius: 8px; cursor: pointer; }
+        #pauseBtn { background: #ffaa00; color: black; }
+        table { margin: 30px auto; border-collapse: collapse; width: 60%; }
+        th, td { border: 1px solid #b388ff; padding: 10px; }
+        th { background: #2a004d; }
+        #status { font-size: 20px; margin: 20px; }
     </style>
 </head>
 <body>
-    <h1>BY Lynox Hub - Procesador Simple</h1>
-    <p>Arrastra tu carpeta (como ZIP) o haz clic para seleccionarla</p>
+    <h1>BY Lynox Hub - Procesador de Carpeta</h1>
+    <p>Arrastra tu carpeta aquí o haz clic para seleccionarla</p>
 
-    <div id="drop-zone">
-        Arrastra el ZIP aquí<br>o<br><strong>Haz clic para subir</strong>
-    </div>
+    <div id="drop-zone">Arrastra la carpeta aquí</div>
+    <input type="file" id="folderInput" webkitdirectory directory multiple style="display:none;">
 
-    <input type="file" id="fileInput" accept=".zip" style="display:none;">
-    <button onclick="document.getElementById('fileInput').click()">Seleccionar ZIP</button>
+    <button onclick="document.getElementById('folderInput').click()">Seleccionar Carpeta</button>
+    <button id="pauseBtn" onclick="togglePause()">Pausar</button>
 
-    <div id="status"></div>
+    <div id="status">Esperando carpeta...</div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <table id="table">
+        <tr><th>Archivo</th><th>Estado</th></tr>
+    </table>
+
     <script>
-        const dropZone = document.getElementById('drop-zone');
-        const fileInput = document.getElementById('fileInput');
-        const status = document.getElementById('status');
-
+        let isPaused = false;
         const WATERMARK = `-- ╔════════════════════════════════════════════════════════════╗
 -- ║                  BY Lynox Hub                              ║
 -- ║            https://discord.gg/q8NEM7pPrW                   ║
@@ -65,85 +50,116 @@
 
 `;
 
-        // Drag and Drop
-        dropZone.addEventListener('dragover', e => {
-            e.preventDefault();
-            dropZone.classList.add('dragover');
-        });
+        const dropZone = document.getElementById('drop-zone');
+        const table = document.getElementById('table');
+        const status = document.getElementById('status');
+        const pauseBtn = document.getElementById('pauseBtn');
+
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
         dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
         dropZone.addEventListener('drop', e => {
             e.preventDefault();
             dropZone.classList.remove('dragover');
-            handleFiles(e.dataTransfer.files);
+            processFiles(e.dataTransfer.items);
         });
 
-        fileInput.addEventListener('change', () => {
-            if (fileInput.files.length > 0) handleFiles(fileInput.files);
+        document.getElementById('folderInput').addEventListener('change', e => {
+            processFiles(e.target.files);
         });
 
-        async function handleFiles(files) {
-            const file = files[0];
-            if (!file || !file.name.endsWith('.zip')) {
-                status.innerHTML = "❌ Solo se aceptan archivos .zip";
+        function togglePause() {
+            isPaused = !isPaused;
+            pauseBtn.textContent = isPaused ? "Reanudar" : "Pausar";
+        }
+
+        async function processFiles(items) {
+            let files = [];
+            if (items[0].webkitGetAsEntry) {
+                // Para arrastrar carpeta
+                for (let item of items) {
+                    const entry = item.webkitGetAsEntry();
+                    if (entry.isDirectory) await getFilesFromDir(entry, files);
+                    else files.push(item.getAsFile());
+                }
+            } else {
+                files = Array.from(items);
+            }
+
+            if (files.length === 0) {
+                status.textContent = "No se encontraron archivos";
                 return;
             }
 
-            status.innerHTML = "Procesando... espera un momento 🔥";
+            status.textContent = `Procesando ${files.length} archivos...`;
+            table.innerHTML = `<tr><th>Archivo</th><th>Estado</th></tr>`;
 
-            const zip = new JSZip();
-            const newZip = new JSZip();
+            let processed = 0;
 
-            try {
-                const content = await file.arrayBuffer();
-                const loadedZip = await zip.loadAsync(content);
+            for (let file of files) {
+                while (isPaused) await new Promise(r => setTimeout(r, 500));
 
-                for (const [path, entry] of Object.entries(loadedZip.files)) {
-                    if (entry.dir) continue;
+                const row = table.insertRow();
+                row.insertCell(0).textContent = file.name;
+                const statusCell = row.insertCell(1);
+                statusCell.textContent = "Procesando...";
 
-                    const data = await entry.async("uint8array");
-                    const ext = path.split('.').pop().toLowerCase();
-                    let newPath = path;
-
-                    // Renombrar archivo
-                    const dir = path.substring(0, path.lastIndexOf('/') + 1);
-                    let name = path.substring(path.lastIndexOf('/') + 1);
-                    const base = name.substring(0, name.lastIndexOf('.'));
-                    const extension = name.substring(name.lastIndexOf('.'));
-                    name = `${base} - BY Lynox Hub${extension}`;
-                    newPath = dir + name;
+                try {
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    let newName = file.name.replace(/\.[^/.]+$/, "") + " - BY Lynox Hub." + ext;
 
                     if (['lua', 'luau', 'txt'].includes(ext)) {
-                        let text = new TextDecoder().decode(data);
-                        // Eliminar comentarios iniciales
+                        const text = await file.text();
                         const lines = text.split('\n');
                         let i = 0;
                         while (i < lines.length && i < 50) {
-                            const trimmed = lines[i].trim();
-                            if (trimmed && !trimmed.startsWith('--')) break;
+                            if (lines[i].trim() && !lines[i].trim().startsWith('--')) break;
                             i++;
                         }
-                        text = lines.slice(i).join('\n');
-                        text = WATERMARK + text;
-                        newZip.file(newPath, text);
+                        const clean = lines.slice(i).join('\n');
+                        const finalText = WATERMARK + clean;
+
+                        // Descargar archivo procesado
+                        downloadFile(finalText, newName, 'text/plain');
                     } else {
-                        newZip.file(newPath, data);
+                        downloadFile(await file.arrayBuffer(), newName, file.type || 'application/octet-stream');
                     }
+
+                    statusCell.textContent = "✅ Listo";
+                    statusCell.style.color = "#90ff90";
+                } catch (err) {
+                    statusCell.textContent = "❌ Error";
+                    statusCell.style.color = "#ff6666";
                 }
 
-                // Generar y descargar ZIP
-                const blob = await newZip.generateAsync({type: "blob"});
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = "Procesado_BY_Lynox_Hub.zip";
-                a.click();
-
-                status.innerHTML = "✅ ¡Listo! Archivo descargado con tu marca y renombrado.";
-
-            } catch (err) {
-                status.innerHTML = "❌ Error al procesar el ZIP";
-                console.error(err);
+                processed++;
+                status.textContent = `Procesando... ${processed}/${files.length}`;
             }
+
+            status.innerHTML = `<b>✅ Terminó! Se procesaron ${files.length} archivos.</b>`;
+        }
+
+        function getFilesFromDir(dirEntry, fileList) {
+            return new Promise(resolve => {
+                dirEntry.createReader().readEntries(entries => {
+                    Promise.all(entries.map(entry => {
+                        if (entry.isFile) {
+                            return new Promise(r => entry.file(f => { fileList.push(f); r(); }));
+                        } else if (entry.isDirectory) {
+                            return getFilesFromDir(entry, fileList);
+                        }
+                    })).then(resolve);
+                });
+            });
+        }
+
+        function downloadFile(content, fileName, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(url);
         }
     </script>
 </body>
