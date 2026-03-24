@@ -1,169 +1,263 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>BY Lynox Hub - Procesador</title>
-    <style>
-        body { font-family: Arial; background: #0d001a; color: #fff; text-align: center; padding: 40px; }
-        h1 { color: #c79eff; }
-        #drop-zone {
-            border: 4px dashed #b388ff;
-            border-radius: 15px;
-            padding: 70px;
-            margin: 30px auto;
-            width: 70%;
-            font-size: 24px;
-            cursor: pointer;
-        }
-        #drop-zone.dragover { background: #2a004d; border-color: #ffdd99; }
-        button { padding: 14px 35px; font-size: 18px; margin: 10px; border: none; border-radius: 10px; cursor: pointer; }
-        #pauseBtn { background: #ffaa00; color: black; }
-        table { margin: 30px auto; border-collapse: collapse; width: 80%; max-width: 900px; }
-        th, td { border: 1px solid #b388ff; padding: 10px; text-align: left; }
-        th { background: #2a004d; }
-        #status { font-size: 20px; margin: 20px; min-height: 30px; }
-    </style>
+  <meta charset="UTF-8">
+  <title>Envío de Scripts - Un Apartado por Webhook (Corregido)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #1e1e2e;
+      color: #e0e0e0;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: #25253a;
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    h1 {
+      text-align: center;
+      color: #7289da;
+      margin-bottom: 25px;
+    }
+    .webhook-list {
+      margin-bottom: 20px;
+    }
+    .webhook-item {
+      background: #1e1e2e;
+      padding: 12px 15px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid #5865f2;
+    }
+    .webhook-item input {
+      flex: 1;
+      background: #2f2f45;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+    .add-btn {
+      background: #43b581;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 15px;
+    }
+    label {
+      display: block;
+      margin: 18px 0 8px;
+      font-weight: 500;
+      color: #b9bbbe;
+    }
+    input[type="file"], input[type="number"] {
+      width: 100%;
+      padding: 12px;
+      background: #1e1e2e;
+      color: white;
+      border: 1px solid #5865f2;
+      border-radius: 8px;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      margin: 12px 0 8px;
+      border: none;
+      border-radius: 10px;
+      font-size: 17px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .start-btn { background: #5865f2; color: white; }
+    .start-btn:hover { background: #4752c4; }
+    .stop-btn { background: #f04747; color: white; }
+    .stop-btn:hover { background: #d13f3f; }
+
+    .status {
+      margin-top: 20px;
+      padding: 16px;
+      background: #1e1e2e;
+      border-radius: 10px;
+      font-size: 16px;
+      min-height: 70px;
+      line-height: 1.6;
+    }
+    .success { color: #43b581; }
+    .error { color: #f04747; }
+  </style>
 </head>
 <body>
-    <h1>BY Lynox Hub - Procesador de Carpeta</h1>
-    <p>Arrastra tu carpeta aquí</p>
+  <div class="container">
+    <h1>📤 Envío de Scripts - Un Apartado por Webhook</h1>
+    
+    <label>1. Webhooks (uno por apartado)</label>
+    <div class="webhook-list" id="webhookList"></div>
+    <button class="add-btn" onclick="agregarWebhook()">+ Agregar Webhook</button>
 
-    <div id="drop-zone">Arrastra la carpeta completa aquí</div>
-    <input type="file" id="folderInput" webkitdirectory directory multiple style="display:none;">
+    <label>2. Selecciona la carpeta con los scripts</label>
+    <input type="file" id="folder" webkitdirectory directory multiple>
 
-    <button onclick="document.getElementById('folderInput').click()">Seleccionar Carpeta</button>
-    <button id="pauseBtn" onclick="togglePause()">Pausar</button>
+    <label>3. Delay entre envíos (ms) - Recomendado 2500+</label>
+    <input type="number" id="delay" value="2800" min="1000" step="200">
 
-    <div id="status">Esperando carpeta...</div>
+    <button class="start-btn" id="startBtn" onclick="iniciarEnvio()">🚀 COMENZAR ENVÍO</button>
+    <button class="stop-btn" id="stopBtn" onclick="detenerEnvio()" disabled>⏹ DETENER ENVÍO</button>
 
-    <table id="table">
-        <tr><th>Archivo</th><th>Estado</th></tr>
-    </table>
+    <div class="status" id="status">Listo • Agrega webhooks y selecciona la carpeta</div>
+  </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script>
-        let isPaused = false;
-        const WATERMARK = `-- ╔════════════════════════════════════════════════════════════╗
--- ║                  BY Lynox Hub                              ║
--- ║            https://discord.gg/q8NEM7pPrW                   ║
--- ║       Scripts, Leaks & More → Join the Hub Now!            ║
--- ╚════════════════════════════════════════════════════════════╝
+  <script>
+    // Agregar apartado de webhook
+    function agregarWebhook(valor = '') {
+      const list = document.getElementById('webhookList');
+      const div = document.createElement('div');
+      div.className = 'webhook-item';
+      div.innerHTML = `
+        <input type="text" value="${valor}" placeholder="https://discord.com/api/webhooks/...">
+        <button onclick="this.parentElement.remove()" style="background:#f04747;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;">Eliminar</button>
+      `;
+      list.appendChild(div);
+    }
 
-`;
+    function obtenerWebhooks() {
+      return Array.from(document.querySelectorAll('.webhook-item input'))
+                  .map(input => input.value.trim())
+                  .filter(url => url && url.startsWith('https://discord.com/api/webhooks/'));
+    }
 
-        const dropZone = document.getElementById('drop-zone');
-        const table = document.getElementById('table');
-        const status = document.getElementById('status');
-        const pauseBtn = document.getElementById('pauseBtn');
+    let enviando = false;
+    let archivosPendientes = [];
+    let enviados = new Set();
+    let indexActual = 0;
+    let webhooks = [];
+    let delayMs = 2800;
 
-        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
-        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-        dropZone.addEventListener('drop', e => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-            processFolder(e.dataTransfer.items);
-        });
+    async function iniciarEnvio() {
+      webhooks = obtenerWebhooks();
+      delayMs = parseInt(document.getElementById('delay').value) || 2800;
 
-        document.getElementById('folderInput').addEventListener('change', e => {
-            processFolder(e.target.files);
-        });
+      if (webhooks.length === 0) return mostrarError('Agrega al menos un webhook válido.');
 
-        function togglePause() {
-            isPaused = !isPaused;
-            pauseBtn.textContent = isPaused ? "Reanudar" : "Pausar";
+      const folderInput = document.getElementById('folder');
+      if (folderInput.files.length === 0) return mostrarError('Selecciona una carpeta.');
+
+      let candidatos = Array.from(folderInput.files).filter(file => 
+        (file.name.endsWith('.txt') || file.name.endsWith('.lua')) && 
+        file.size > 0 && !enviados.has(file.name)
+      );
+
+      archivosPendientes = [];
+      mostrarStatus(`Analizando ${candidatos.length} archivos...`);
+
+      for (let file of candidatos) {
+        try {
+          const texto = await file.text();
+          const match = texto.match(/TitleLabel\.Text\s*=\s*["']?([^"'\n\r;]+)["']?/i);
+          if (match && match[1].trim()) {
+            file.detectedName = match[1].trim();
+            archivosPendientes.push(file);
+          }
+        } catch (e) {}
+      }
+
+      if (archivosPendientes.length === 0) 
+        return mostrarError('No se encontraron archivos con TitleLabel.Text = ...');
+
+      // Reparto equitativo CORREGIDO
+      archivosPendientes = repartirEquitativamente(archivosPendientes, webhooks.length);
+
+      enviando = true;
+      document.getElementById('startBtn').disabled = true;
+      document.getElementById('stopBtn').disabled = false;
+
+      mostrarStatus(`✅ ${archivosPendientes.length} scripts listos\nRepartiendo entre ${webhooks.length} webhooks...`);
+
+      indexActual = 0;
+      await procesarEnvio();
+    }
+
+    function repartirEquitativamente(archivos, numWebhooks) {
+      if (numWebhooks <= 1) return archivos;
+      const grupos = Array.from({length: numWebhooks}, () => []);
+      archivos.forEach((archivo, i) => {
+        grupos[i % numWebhooks].push(archivo);
+      });
+      return grupos.flat();
+    }
+
+    async function procesarEnvio() {
+      const total = archivosPendientes.length;
+
+      while (enviando && indexActual < total) {
+        const file = archivosPendientes[indexActual];
+        
+        // Cálculo correcto del webhook
+        const webhookIndex = indexActual % webhooks.length;
+        const webhook = webhooks[webhookIndex];
+
+        const titulo = file.detectedName;
+
+        mostrarStatus(`Enviando ${indexActual + 1}/${total} → ${titulo} (Webhook ${webhookIndex + 1})`);
+
+        const formData = new FormData();
+        formData.append('payload_json', JSON.stringify({ content: titulo }));
+        formData.append('files[0]', file);
+
+        try {
+          const res = await fetch(webhook, { method: 'POST', body: formData });
+          if (res.ok) {
+            enviados.add(file.name);
+            mostrarStatus(`✅ Enviado correctamente: ${titulo} (Webhook ${webhookIndex + 1})`, 'success');
+          } else {
+            mostrarError(`Error ${res.status} en ${file.name} (Webhook ${webhookIndex + 1})`);
+          }
+        } catch (err) {
+          mostrarError(`Error de conexión en ${file.name}`);
         }
 
-        async function processFolder(items) {
-            let files = [];
-            const newZip = new JSZip();
-
-            // Obtener todos los archivos de la carpeta
-            if (items[0] && items[0].webkitGetAsEntry) {
-                for (let item of items) {
-                    const entry = item.webkitGetAsEntry();
-                    if (entry) await getAllFiles(entry, files, "");
-                }
-            } else {
-                files = Array.from(items);
-            }
-
-            if (files.length === 0) {
-                status.textContent = "❌ No se encontraron archivos";
-                return;
-            }
-
-            status.textContent = `Procesando ${files.length} archivos...`;
-            table.innerHTML = `<tr><th>Archivo</th><th>Estado</th></tr>`;
-
-            let processed = 0;
-
-            for (let file of files) {
-                while (isPaused) await new Promise(r => setTimeout(r, 300));
-
-                const row = table.insertRow();
-                row.insertCell(0).textContent = file.name;
-                const statusCell = row.insertCell(1);
-                statusCell.textContent = "Procesando...";
-
-                const ext = file.name.split('.').pop().toLowerCase();
-                let newName = file.name.replace(/\.[^/.]+$/, "") + " - BY Lynox Hub." + ext;
-
-                try {
-                    if (['lua', 'luau', 'txt'].includes(ext)) {
-                        let text = await file.text();
-                        // Limpiar comentarios iniciales
-                        let lines = text.split('\n');
-                        let i = 0;
-                        while (i < lines.length && i < 50) {
-                            if (lines[i].trim() && !lines[i].trim().startsWith('--')) break;
-                            i++;
-                        }
-                        text = lines.slice(i).join('\n');
-                        text = WATERMARK + text;
-                        newZip.file(newName, text);
-                    } else {
-                        const buffer = await file.arrayBuffer();
-                        newZip.file(newName, buffer);
-                    }
-
-                    statusCell.textContent = "✅ Listo";
-                    statusCell.style.color = "#90ff90";
-                } catch (e) {
-                    statusCell.textContent = "❌ Error";
-                    statusCell.style.color = "#ff6666";
-                }
-
-                processed++;
-                status.textContent = `Procesando... ${processed} / ${files.length}`;
-            }
-
-            // Generar y descargar ZIP final
-            status.textContent = "Creando ZIP final...";
-            const blob = await newZip.generateAsync({type: "blob"});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = "Procesado_BY_Lynox_Hub.zip";
-            a.click();
-
-            status.innerHTML = `<b>✅ ¡Terminado! Se procesaron ${files.length} archivos.<br>Descargando ZIP...</b>`;
+        indexActual++;
+        if (enviando && indexActual < total) {
+          await new Promise(r => setTimeout(r, delayMs));
         }
+      }
 
-        async function getAllFiles(dirEntry, fileList, path) {
-            return new Promise(resolve => {
-                dirEntry.createReader().readEntries(async entries => {
-                    for (let entry of entries) {
-                        if (entry.isFile) {
-                            const file = await new Promise(r => entry.file(r));
-                            fileList.push(file);
-                        } else if (entry.isDirectory) {
-                            await getAllFiles(entry, fileList, path + entry.name + "/");
-                        }
-                    }
-                    resolve();
-                });
-            });
-        }
-    </script>
+      if (enviando) mostrarStatus(`¡Terminado!\nSe enviaron ${enviados.size} archivos.`, 'success');
+      else mostrarStatus('Envío detenido.');
+
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('stopBtn').disabled = true;
+    }
+
+    function detenerEnvio() {
+      enviando = false;
+      mostrarStatus('Deteniendo envío...');
+    }
+
+    function mostrarStatus(texto, tipo = '') {
+      const el = document.getElementById('status');
+      el.innerHTML = texto.replace(/\n/g, '<br>');
+      el.className = 'status ' + (tipo === 'success' ? 'success' : tipo === 'error' ? 'error' : '');
+    }
+
+    function mostrarError(texto) {
+      const el = document.getElementById('status');
+      el.textContent = texto;
+      el.className = 'status error';
+    }
+
+    // Iniciar con un webhook vacío
+    window.onload = () => agregarWebhook();
+  </script>
 </body>
 </html>
