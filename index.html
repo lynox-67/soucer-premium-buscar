@@ -13,111 +13,106 @@
       background: linear-gradient(135deg, #0a001f, #1a0033, #2a004d);
       color: #e0ccff;
       font-family: 'Inter', sans-serif;
-      min-height: 100vh;
     }
 
     .header {
-      background: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(10px);
-      padding: 25px 0;
+      background: rgba(0,0,0,0.8);
       text-align: center;
-      border-bottom: 2px solid #b388ff;
+      padding: 40px 20px;
+      border-bottom: 3px solid #b388ff;
     }
 
     .header h1 {
+      font-size: 3.5rem;
       margin: 0;
-      font-size: 3rem;
-      background: linear-gradient(90deg, #c79eff, #ff99cc, #ffdd99);
+      background: linear-gradient(90deg, #c79eff, #ff99cc, #ffd700);
       -webkit-background-clip: text;
-      background-clip: text;
       -webkit-text-fill-color: transparent;
     }
 
+    .subtitle {
+      font-size: 1.4rem;
+      opacity: 0.9;
+      margin: 10px 0 20px;
+    }
+
     .discord-btn {
-      margin-top: 15px;
-      padding: 12px 30px;
+      padding: 14px 40px;
       background: #5865F2;
       color: white;
       border: none;
       border-radius: 50px;
-      font-size: 1.1rem;
+      font-size: 1.2rem;
       cursor: pointer;
-      transition: 0.3s;
-    }
-
-    .discord-btn:hover {
-      background: #4752c4;
-      transform: scale(1.05);
     }
 
     .container {
-      max-width: 1200px;
+      max-width: 1300px;
       margin: 40px auto;
       padding: 0 20px;
     }
 
     .search {
       width: 100%;
-      padding: 15px;
-      border-radius: 12px;
+      padding: 18px;
+      border-radius: 15px;
       border: none;
       background: rgba(255,255,255,0.1);
       color: white;
-      font-size: 1.1rem;
+      font-size: 1.2rem;
       margin-bottom: 30px;
     }
 
     .file-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-      gap: 18px;
+      grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+      gap: 20px;
     }
 
     .file-card {
       background: rgba(255,255,255,0.08);
       border-radius: 16px;
-      padding: 20px;
-      transition: 0.3s;
+      padding: 22px;
+      transition: all 0.3s;
       border: 1px solid rgba(179, 136, 255, 0.3);
     }
 
     .file-card:hover {
-      transform: translateY(-8px);
-      background: rgba(255,255,255,0.12);
-      box-shadow: 0 10px 30px rgba(179, 136, 255, 0.2);
+      transform: translateY(-10px);
+      box-shadow: 0 15px 35px rgba(179, 136, 255, 0.25);
     }
 
     .file-name {
-      font-size: 1.15rem;
+      font-size: 1.25rem;
       font-weight: 600;
-      margin-bottom: 10px;
       color: #ffdd99;
+      margin-bottom: 8px;
+    }
+
+    .description {
+      font-size: 0.95rem;
+      opacity: 0.85;
+      line-height: 1.5;
+      margin-bottom: 15px;
     }
 
     .download-btn {
-      margin-top: 15px;
       width: 100%;
-      padding: 12px;
+      padding: 14px;
       background: linear-gradient(90deg, #b388ff, #ff99cc);
       color: black;
-      border: none;
-      border-radius: 10px;
       font-weight: bold;
+      border: none;
+      border-radius: 12px;
       cursor: pointer;
+      font-size: 1.1rem;
     }
 
     .total {
       text-align: center;
+      font-size: 1.4rem;
       margin: 30px 0;
-      font-size: 1.3rem;
       opacity: 0.9;
-    }
-
-    .watermark {
-      text-align: center;
-      margin-top: 60px;
-      opacity: 0.6;
-      font-size: 1rem;
     }
   </style>
 </head>
@@ -125,65 +120,82 @@
 
   <div class="header">
     <h1>BY LYNox HUB</h1>
-    <p>Scripts • Leaks • Tools</p>
+    <p class="subtitle">Scripts • Leaks • Tools Premium</p>
     <button class="discord-btn" onclick="window.open('https://discord.gg/q8NEM7pPrW', '_blank')">
-      Unirse al Discord
+      Unirse al Discord Oficial
     </button>
   </div>
 
   <div class="container">
-    <input type="text" id="search" class="search" placeholder="Buscar script..." onkeyup="filtrar()">
+    <input type="text" id="search" class="search" placeholder="🔍 Buscar script..." onkeyup="buscar()">
 
-    <div class="total" id="total">Cargando archivos...</div>
+    <div class="total" id="contador">Cargando archivos...</div>
 
-    <div class="file-grid" id="fileGrid"></div>
-  </div>
-
-  <div class="watermark">
-    Powered by BY Lynox Hub • discord.gg/q8NEM7pPrW
+    <div class="file-grid" id="grid"></div>
   </div>
 
   <script>
-    // Aquí se cargarán automáticamente los archivos de tu carpeta
-    const files = []; // Se llenará con Python o manualmente
+    // ==================== LISTA DE ARCHIVOS (se llenará automáticamente) ====================
+    const archivos = [];
 
-    // Función para mostrar archivos (se puede mejorar después)
-    function mostrarArchivos(lista) {
-      const grid = document.getElementById('fileGrid');
+    function cargarArchivos() {
+      const grid = document.getElementById('grid');
       grid.innerHTML = '';
-      
-      lista.forEach(file => {
+
+      archivos.forEach(archivo => {
         const card = document.createElement('div');
         card.className = 'file-card';
         card.innerHTML = `
-          <div class="file-name">${file}</div>
-          <button class="download-btn" onclick="descargar('${file}')">
-            Descargar Archivo
+          <div class="file-name">${archivo}</div>
+          <div class="description">
+            Script optimizado • Incluye marca de agua BY Lynox Hub<br>
+            Listo para usar • Leak / Tool
+          </div>
+          <button class="download-btn" onclick="descargar('${archivo}')">
+            ⬇️ Descargar Archivo
           </button>
         `;
         grid.appendChild(card);
       });
-      
-      document.getElementById('total').textContent = `${lista.length} archivos disponibles`;
-    }
 
-    function filtrar() {
-      const term = document.getElementById('search').value.toLowerCase();
-      const filtered = files.filter(f => f.toLowerCase().includes(term));
-      mostrarArchivos(filtered);
+      document.getElementById('contador').textContent = `${archivos.length} scripts disponibles`;
     }
 
     function descargar(nombre) {
-      window.location.href = nombre; // Descarga directa
+      window.location.href = nombre;
     }
 
-    // Carga automática de archivos (puedes mejorarlo después con Python)
+    function buscar() {
+      const termino = document.getElementById('search').value.toLowerCase();
+      const filtrados = archivos.filter(arch => arch.toLowerCase().includes(termino));
+      
+      const grid = document.getElementById('grid');
+      grid.innerHTML = '';
+
+      filtrados.forEach(archivo => {
+        const card = document.createElement('div');
+        card.className = 'file-card';
+        card.innerHTML = `
+          <div class="file-name">${archivo}</div>
+          <div class="description">
+            Script optimizado • Incluye marca de agua BY Lynox Hub
+          </div>
+          <button class="download-btn" onclick="descargar('${archivo}')">
+            ⬇️ Descargar Archivo
+          </button>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    // Cargar archivos automáticamente cuando se abra la página
     window.onload = () => {
-      // Por ahora muestra un mensaje
-      document.getElementById('total').innerHTML = `
+      // Aquí puedes poner manualmente los nombres si quieres, o usar Python para generarlos
+      console.log("Web de BY Lynox Hub cargada correctamente");
+      // Por ahora mostramos mensaje
+      document.getElementById('contador').innerHTML = `
         <strong>Web lista.</strong><br>
-        Para que aparezcan los archivos, guarda esta página como <code>index.html</code> 
-        dentro de la carpeta <strong>SOUCERLYNOX</strong>
+        Guarda esta página como <code>index.html</code> dentro de la carpeta SOUCERLYNOX
       `;
     };
   </script>
