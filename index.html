@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Envío de Scripts - Un Webhook por Línea</title>
+  <title>Envío de Scripts - Un Apartado por Webhook</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -12,34 +12,53 @@
       padding: 20px;
     }
     .container {
-      max-width: 900px;
+      max-width: 1000px;
       margin: 0 auto;
       background: #25253a;
       border-radius: 16px;
-      padding: 30px;
+      padding: 25px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
     h1 {
       text-align: center;
       color: #7289da;
+      margin-bottom: 20px;
+    }
+    .webhook-list {
       margin-bottom: 25px;
+    }
+    .webhook-item {
+      background: #1e1e2e;
+      padding: 12px 15px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid #5865f2;
+    }
+    .webhook-item input {
+      flex: 1;
+      background: #2f2f45;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 8px;
+    }
+    .add-btn {
+      background: #43b581;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
     }
     label {
       display: block;
-      margin: 18px 0 8px;
+      margin: 15px 0 8px;
       font-weight: 500;
       color: #b9bbbe;
-    }
-    textarea {
-      width: 100%;
-      height: 180px;
-      background: #1e1e2e;
-      color: #fff;
-      border: 2px solid #5865f2;
-      border-radius: 10px;
-      padding: 12px;
-      font-size: 15px;
-      resize: vertical;
     }
     input[type="file"], input[type="number"] {
       width: 100%;
@@ -53,22 +72,16 @@
     button {
       width: 100%;
       padding: 14px;
-      margin-top: 15px;
+      margin: 10px 0;
       border: none;
       border-radius: 10px;
       font-size: 17px;
       font-weight: bold;
       cursor: pointer;
     }
-    .start-btn {
-      background: #5865f2;
-      color: white;
-    }
+    .start-btn { background: #5865f2; color: white; }
     .start-btn:hover { background: #4752c4; }
-    .stop-btn {
-      background: #f04747;
-      color: white;
-    }
+    .stop-btn { background: #f04747; color: white; }
     .stop-btn:hover { background: #d13f3f; }
 
     .status {
@@ -77,7 +90,7 @@
       background: #1e1e2e;
       border-radius: 10px;
       font-size: 16px;
-      min-height: 60px;
+      min-height: 70px;
       line-height: 1.6;
     }
     .success { color: #43b581; }
@@ -86,51 +99,65 @@
 </head>
 <body>
   <div class="container">
-    <h1>📤 Envío de Scripts - Un Webhook por Línea</h1>
+    <h1>📤 Envío de Scripts - Un Apartado por Webhook</h1>
     
-    <label>1. Pega tus Webhooks (UNO POR LÍNEA)</label>
-    <textarea id="webhooks" placeholder="https://discord.com/api/webhooks/1234567890/abcdef...\nhttps://discord.com/api/webhooks/0987654321/zyxwv..."></textarea>
+    <label>1. Webhooks (un apartado por cada uno)</label>
+    <div class="webhook-list" id="webhookList">
+      <!-- Los apartados se agregan aquí con JavaScript -->
+    </div>
+    <button class="add-btn" onclick="agregarWebhook()">+ Agregar otro Webhook</button>
 
     <label>2. Selecciona la carpeta con los scripts</label>
     <input type="file" id="folder" webkitdirectory directory multiple>
 
-    <label>3. Delay entre envíos (milisegundos)</label>
+    <label>3. Delay entre envíos (ms)</label>
     <input type="number" id="delay" value="2800" min="1000" step="200">
 
     <button class="start-btn" id="startBtn" onclick="iniciarEnvio()">🚀 COMENZAR ENVÍO</button>
     <button class="stop-btn" id="stopBtn" onclick="detenerEnvio()" disabled>⏹ DETENER ENVÍO</button>
 
-    <div class="status" id="status">Listo • Esperando carpeta y webhooks...</div>
+    <div class="status" id="status">Listo • Agrega tus webhooks y selecciona la carpeta</div>
   </div>
 
   <script>
+    let webhooks = [];
+
+    // Agregar un nuevo apartado de webhook
+    function agregarWebhook(valor = '') {
+      const list = document.getElementById('webhookList');
+      const div = document.createElement('div');
+      div.className = 'webhook-item';
+      div.innerHTML = `
+        <input type="text" value="${valor}" placeholder="https://discord.com/api/webhooks/...">
+        <button style="background:#f04747; color:white; border:none; padding:8px 12px; border-radius:6px; cursor:pointer;" onclick="this.parentElement.remove()">Eliminar</button>
+      `;
+      list.appendChild(div);
+    }
+
+    // Obtener todos los webhooks de los apartados
+    function obtenerWebhooks() {
+      return Array.from(document.querySelectorAll('.webhook-item input'))
+                  .map(input => input.value.trim())
+                  .filter(url => url.startsWith('https://discord.com/api/webhooks/'));
+    }
+
     let enviando = false;
     let archivosPendientes = [];
     let enviados = new Set();
     let indexActual = 0;
-    let webhooks = [];
     let delayMs = 2800;
 
     async function iniciarEnvio() {
-      const textoWebhooks = document.getElementById('webhooks').value.trim();
+      webhooks = obtenerWebhooks();
       delayMs = parseInt(document.getElementById('delay').value) || 2800;
 
-      if (!textoWebhooks) return mostrarError('Por favor pega al menos un webhook.');
-
-      // Uno por línea
-      webhooks = textoWebhooks.split('\n')
-                             .map(line => line.trim())
-                             .filter(line => line.startsWith('https://discord.com/api/webhooks/'));
-
-      if (webhooks.length === 0) return mostrarError('Ningún webhook válido detectado.');
+      if (webhooks.length === 0) return mostrarError('Agrega al menos un webhook.');
 
       const folderInput = document.getElementById('folder');
       if (folderInput.files.length === 0) return mostrarError('Selecciona una carpeta.');
 
-      // Filtrar candidatos
       let candidatos = Array.from(folderInput.files).filter(file => 
-        (file.name.endsWith('.txt') || file.name.endsWith('.lua')) && 
-        file.size > 0 && !enviados.has(file.name)
+        (file.name.endsWith('.txt') || file.name.endsWith('.lua')) && file.size > 0 && !enviados.has(file.name)
       );
 
       archivosPendientes = [];
@@ -157,7 +184,7 @@
       document.getElementById('startBtn').disabled = true;
       document.getElementById('stopBtn').disabled = false;
 
-      mostrarStatus(`✅ ${archivosPendientes.length} scripts válidos encontrados\nRepartiendo entre ${webhooks.length} webhooks...`);
+      mostrarStatus(`✅ ${archivosPendientes.length} scripts válidos\nRepartiendo entre ${webhooks.length} webhooks...`);
 
       indexActual = 0;
       await procesarEnvio();
@@ -196,7 +223,7 @@
             mostrarError(`Error ${res.status} en ${file.name}`);
           }
         } catch (err) {
-          mostrarError(`Error de conexión en ${file.name}`);
+          mostrarError(`Error en ${file.name}`);
         }
 
         indexActual++;
@@ -205,8 +232,8 @@
         }
       }
 
-      if (enviando) mostrarStatus(`¡Terminado!\nSe enviaron ${enviados.size} archivos correctamente.`, 'success');
-      else mostrarStatus('Envío detenido por el usuario.');
+      if (enviando) mostrarStatus(`¡Completado!\nSe enviaron ${enviados.size} archivos.`, 'success');
+      else mostrarStatus('Envío detenido.');
 
       document.getElementById('startBtn').disabled = false;
       document.getElementById('stopBtn').disabled = true;
@@ -220,7 +247,9 @@
     function mostrarStatus(texto, tipo = '') {
       const el = document.getElementById('status');
       el.innerHTML = texto.replace(/\n/g, '<br>');
-      el.className = 'status ' + (tipo === 'success' ? 'success' : tipo === 'error' ? 'error' : '');
+      if (tipo === 'success') el.className = 'status success';
+      else if (tipo === 'error') el.className = 'status error';
+      else el.className = 'status';
     }
 
     function mostrarError(texto) {
@@ -228,6 +257,9 @@
       el.textContent = texto;
       el.className = 'status error';
     }
+
+    // Agregar el primer webhook automáticamente al cargar
+    window.onload = () => agregarWebhook();
   </script>
 </body>
 </html>
