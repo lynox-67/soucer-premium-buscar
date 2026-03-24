@@ -2,33 +2,33 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>BY Lynox Hub - Procesador de Carpeta</title>
+    <title>BY Lynox Hub - Procesador</title>
     <style>
         body { font-family: Arial; background: #0d001a; color: #fff; text-align: center; padding: 40px; }
         h1 { color: #c79eff; }
         #drop-zone {
             border: 4px dashed #b388ff;
             border-radius: 15px;
-            padding: 60px;
+            padding: 70px;
             margin: 30px auto;
             width: 70%;
-            font-size: 22px;
+            font-size: 24px;
             cursor: pointer;
         }
-        #drop-zone.dragover { background: #1a0033; border-color: #ffdd99; }
-        button { padding: 12px 30px; font-size: 18px; margin: 10px; border: none; border-radius: 8px; cursor: pointer; }
+        #drop-zone.dragover { background: #2a004d; border-color: #ffdd99; }
+        button { padding: 14px 35px; font-size: 18px; margin: 10px; border: none; border-radius: 10px; cursor: pointer; }
         #pauseBtn { background: #ffaa00; color: black; }
-        table { margin: 30px auto; border-collapse: collapse; width: 60%; }
-        th, td { border: 1px solid #b388ff; padding: 10px; }
+        table { margin: 30px auto; border-collapse: collapse; width: 80%; max-width: 900px; }
+        th, td { border: 1px solid #b388ff; padding: 10px; text-align: left; }
         th { background: #2a004d; }
-        #status { font-size: 20px; margin: 20px; }
+        #status { font-size: 20px; margin: 20px; min-height: 30px; }
     </style>
 </head>
 <body>
     <h1>BY Lynox Hub - Procesador de Carpeta</h1>
-    <p>Arrastra tu carpeta aquí o haz clic para seleccionarla</p>
+    <p>Arrastra tu carpeta aquí</p>
 
-    <div id="drop-zone">Arrastra la carpeta aquí</div>
+    <div id="drop-zone">Arrastra la carpeta completa aquí</div>
     <input type="file" id="folderInput" webkitdirectory directory multiple style="display:none;">
 
     <button onclick="document.getElementById('folderInput').click()">Seleccionar Carpeta</button>
@@ -40,6 +40,7 @@
         <tr><th>Archivo</th><th>Estado</th></tr>
     </table>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script>
         let isPaused = false;
         const WATERMARK = `-- ╔════════════════════════════════════════════════════════════╗
@@ -60,11 +61,11 @@
         dropZone.addEventListener('drop', e => {
             e.preventDefault();
             dropZone.classList.remove('dragover');
-            processFiles(e.dataTransfer.items);
+            processFolder(e.dataTransfer.items);
         });
 
         document.getElementById('folderInput').addEventListener('change', e => {
-            processFiles(e.target.files);
+            processFolder(e.target.files);
         });
 
         function togglePause() {
@@ -72,21 +73,22 @@
             pauseBtn.textContent = isPaused ? "Reanudar" : "Pausar";
         }
 
-        async function processFiles(items) {
+        async function processFolder(items) {
             let files = [];
-            if (items[0].webkitGetAsEntry) {
-                // Para arrastrar carpeta
+            const newZip = new JSZip();
+
+            // Obtener todos los archivos de la carpeta
+            if (items[0] && items[0].webkitGetAsEntry) {
                 for (let item of items) {
                     const entry = item.webkitGetAsEntry();
-                    if (entry.isDirectory) await getFilesFromDir(entry, files);
-                    else files.push(item.getAsFile());
+                    if (entry) await getAllFiles(entry, files, "");
                 }
             } else {
                 files = Array.from(items);
             }
 
             if (files.length === 0) {
-                status.textContent = "No se encontraron archivos";
+                status.textContent = "❌ No se encontraron archivos";
                 return;
             }
 
@@ -96,70 +98,71 @@
             let processed = 0;
 
             for (let file of files) {
-                while (isPaused) await new Promise(r => setTimeout(r, 500));
+                while (isPaused) await new Promise(r => setTimeout(r, 300));
 
                 const row = table.insertRow();
                 row.insertCell(0).textContent = file.name;
                 const statusCell = row.insertCell(1);
                 statusCell.textContent = "Procesando...";
 
-                try {
-                    const ext = file.name.split('.').pop().toLowerCase();
-                    let newName = file.name.replace(/\.[^/.]+$/, "") + " - BY Lynox Hub." + ext;
+                const ext = file.name.split('.').pop().toLowerCase();
+                let newName = file.name.replace(/\.[^/.]+$/, "") + " - BY Lynox Hub." + ext;
 
+                try {
                     if (['lua', 'luau', 'txt'].includes(ext)) {
-                        const text = await file.text();
-                        const lines = text.split('\n');
+                        let text = await file.text();
+                        // Limpiar comentarios iniciales
+                        let lines = text.split('\n');
                         let i = 0;
                         while (i < lines.length && i < 50) {
                             if (lines[i].trim() && !lines[i].trim().startsWith('--')) break;
                             i++;
                         }
-                        const clean = lines.slice(i).join('\n');
-                        const finalText = WATERMARK + clean;
-
-                        // Descargar archivo procesado
-                        downloadFile(finalText, newName, 'text/plain');
+                        text = lines.slice(i).join('\n');
+                        text = WATERMARK + text;
+                        newZip.file(newName, text);
                     } else {
-                        downloadFile(await file.arrayBuffer(), newName, file.type || 'application/octet-stream');
+                        const buffer = await file.arrayBuffer();
+                        newZip.file(newName, buffer);
                     }
 
                     statusCell.textContent = "✅ Listo";
                     statusCell.style.color = "#90ff90";
-                } catch (err) {
+                } catch (e) {
                     statusCell.textContent = "❌ Error";
                     statusCell.style.color = "#ff6666";
                 }
 
                 processed++;
-                status.textContent = `Procesando... ${processed}/${files.length}`;
+                status.textContent = `Procesando... ${processed} / ${files.length}`;
             }
 
-            status.innerHTML = `<b>✅ Terminó! Se procesaron ${files.length} archivos.</b>`;
-        }
-
-        function getFilesFromDir(dirEntry, fileList) {
-            return new Promise(resolve => {
-                dirEntry.createReader().readEntries(entries => {
-                    Promise.all(entries.map(entry => {
-                        if (entry.isFile) {
-                            return new Promise(r => entry.file(f => { fileList.push(f); r(); }));
-                        } else if (entry.isDirectory) {
-                            return getFilesFromDir(entry, fileList);
-                        }
-                    })).then(resolve);
-                });
-            });
-        }
-
-        function downloadFile(content, fileName, mimeType) {
-            const blob = new Blob([content], { type: mimeType });
+            // Generar y descargar ZIP final
+            status.textContent = "Creando ZIP final...";
+            const blob = await newZip.generateAsync({type: "blob"});
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = fileName;
+            a.download = "Procesado_BY_Lynox_Hub.zip";
             a.click();
-            URL.revokeObjectURL(url);
+
+            status.innerHTML = `<b>✅ ¡Terminado! Se procesaron ${files.length} archivos.<br>Descargando ZIP...</b>`;
+        }
+
+        async function getAllFiles(dirEntry, fileList, path) {
+            return new Promise(resolve => {
+                dirEntry.createReader().readEntries(async entries => {
+                    for (let entry of entries) {
+                        if (entry.isFile) {
+                            const file = await new Promise(r => entry.file(r));
+                            fileList.push(file);
+                        } else if (entry.isDirectory) {
+                            await getAllFiles(entry, fileList, path + entry.name + "/");
+                        }
+                    }
+                    resolve();
+                });
+            });
         }
     </script>
 </body>
