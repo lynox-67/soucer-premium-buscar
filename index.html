@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Envío de Scripts - Reparto Equitativo</title>
+  <title>Envío de Scripts - Un Webhook por Línea</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -12,43 +12,73 @@
       padding: 20px;
     }
     .container {
-      max-width: 850px;
+      max-width: 900px;
       margin: 0 auto;
       background: #25253a;
-      border-radius: 12px;
-      padding: 25px;
-      box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
-    h1 { text-align: center; color: #7289da; margin-bottom: 25px; }
-    label { display: block; margin: 15px 0 6px; font-weight: 500; color: #b9bbbe; }
-    input, button {
+    h1 {
+      text-align: center;
+      color: #7289da;
+      margin-bottom: 25px;
+    }
+    label {
+      display: block;
+      margin: 18px 0 8px;
+      font-weight: 500;
+      color: #b9bbbe;
+    }
+    textarea {
+      width: 100%;
+      height: 180px;
+      background: #1e1e2e;
+      color: #fff;
+      border: 2px solid #5865f2;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 15px;
+      resize: vertical;
+    }
+    input[type="file"], input[type="number"] {
       width: 100%;
       padding: 12px;
+      background: #1e1e2e;
+      color: white;
+      border: 1px solid #5865f2;
       border-radius: 8px;
-      border: none;
       font-size: 16px;
     }
-    input { background: #1e1e2e; color: white; }
     button {
-      background: #5865f2;
-      color: white;
+      width: 100%;
+      padding: 14px;
+      margin-top: 15px;
+      border: none;
+      border-radius: 10px;
+      font-size: 17px;
       font-weight: bold;
-      margin-top: 10px;
       cursor: pointer;
     }
-    button:hover { background: #4752c4; }
-    button:disabled { background: #404040; cursor: not-allowed; }
-    .btn-stop { background: #f04747; }
-    .btn-stop:hover { background: #d13f3f; }
+    .start-btn {
+      background: #5865f2;
+      color: white;
+    }
+    .start-btn:hover { background: #4752c4; }
+    .stop-btn {
+      background: #f04747;
+      color: white;
+    }
+    .stop-btn:hover { background: #d13f3f; }
 
     .status {
       margin-top: 20px;
-      padding: 15px;
+      padding: 16px;
       background: #1e1e2e;
-      border-radius: 8px;
-      min-height: 50px;
-      font-size: 15.5px;
-      line-height: 1.5;
+      border-radius: 10px;
+      font-size: 16px;
+      min-height: 60px;
+      line-height: 1.6;
     }
     .success { color: #43b581; }
     .error { color: #f04747; }
@@ -56,21 +86,21 @@
 </head>
 <body>
   <div class="container">
-    <h1>📤 Envío de Scripts con Reparto Equitativo</h1>
+    <h1>📤 Envío de Scripts - Un Webhook por Línea</h1>
     
-    <label>1. Pega las URLs de los Webhooks (una por línea o separadas por coma)</label>
-    <textarea id="webhooks" rows="6" placeholder="https://discord.com/api/webhooks/...\nhttps://discord.com/api/webhooks/..."></textarea>
+    <label>1. Pega tus Webhooks (UNO POR LÍNEA)</label>
+    <textarea id="webhooks" placeholder="https://discord.com/api/webhooks/1234567890/abcdef...\nhttps://discord.com/api/webhooks/0987654321/zyxwv..."></textarea>
 
     <label>2. Selecciona la carpeta con los scripts</label>
     <input type="file" id="folder" webkitdirectory directory multiple>
 
-    <label>3. Delay entre envíos (ms) - Recomendado 2500 - 4000</label>
-    <input type="number" id="delay" value="3000" min="1000" step="500">
+    <label>3. Delay entre envíos (milisegundos)</label>
+    <input type="number" id="delay" value="2800" min="1000" step="200">
 
-    <button id="startBtn" onclick="iniciarEnvio()">🚀 Comenzar Envío</button>
-    <button id="stopBtn" class="btn-stop" onclick="detenerEnvio()" disabled>⏹ Detener Envío</button>
+    <button class="start-btn" id="startBtn" onclick="iniciarEnvio()">🚀 COMENZAR ENVÍO</button>
+    <button class="stop-btn" id="stopBtn" onclick="detenerEnvio()" disabled>⏹ DETENER ENVÍO</button>
 
-    <div class="status" id="status">Listo para analizar los archivos...</div>
+    <div class="status" id="status">Listo • Esperando carpeta y webhooks...</div>
   </div>
 
   <script>
@@ -79,35 +109,33 @@
     let enviados = new Set();
     let indexActual = 0;
     let webhooks = [];
-    let delayMs = 3000;
+    let delayMs = 2800;
 
     async function iniciarEnvio() {
-      const webhooksText = document.getElementById('webhooks').value.trim();
-      delayMs = parseInt(document.getElementById('delay').value) || 3000;
+      const textoWebhooks = document.getElementById('webhooks').value.trim();
+      delayMs = parseInt(document.getElementById('delay').value) || 2800;
+
+      if (!textoWebhooks) return mostrarError('Por favor pega al menos un webhook.');
+
+      // Uno por línea
+      webhooks = textoWebhooks.split('\n')
+                             .map(line => line.trim())
+                             .filter(line => line.startsWith('https://discord.com/api/webhooks/'));
+
+      if (webhooks.length === 0) return mostrarError('Ningún webhook válido detectado.');
+
       const folderInput = document.getElementById('folder');
-
-      if (!webhooksText) return mostrarError('Ingresa al menos un webhook.');
-
-      // Soporta una URL por línea o separadas por coma
-      webhooks = webhooksText.split(/[\n,]/)
-                           .map(u => u.trim())
-                           .filter(u => u.startsWith('https://discord.com/api/webhooks/'));
-
-      if (webhooks.length === 0) return mostrarError('No se detectaron webhooks válidos.');
-
       if (folderInput.files.length === 0) return mostrarError('Selecciona una carpeta.');
 
       // Filtrar candidatos
       let candidatos = Array.from(folderInput.files).filter(file => 
         (file.name.endsWith('.txt') || file.name.endsWith('.lua')) && 
-        file.size > 0 && 
-        !enviados.has(file.name)
+        file.size > 0 && !enviados.has(file.name)
       );
 
       archivosPendientes = [];
       mostrarStatus(`Analizando ${candidatos.length} archivos...`);
 
-      // Detectar TitleLabel.Text =
       for (let file of candidatos) {
         try {
           const texto = await file.text();
@@ -122,26 +150,25 @@
       if (archivosPendientes.length === 0) 
         return mostrarError('No se encontraron archivos con TitleLabel.Text = ...');
 
-      // Repartir equitativamente entre los webhooks
+      // Reparto equitativo
       archivosPendientes = repartirEquitativamente(archivosPendientes, webhooks.length);
 
       enviando = true;
       document.getElementById('startBtn').disabled = true;
       document.getElementById('stopBtn').disabled = false;
 
-      mostrarStatus(`✅ Encontrados ${archivosPendientes.length} scripts válidos.\nRepartiendo entre ${webhooks.length} webhooks...`);
+      mostrarStatus(`✅ ${archivosPendientes.length} scripts válidos encontrados\nRepartiendo entre ${webhooks.length} webhooks...`);
 
       indexActual = 0;
       await procesarEnvio();
     }
 
-    // Función para repartir los archivos de forma justa
     function repartirEquitativamente(archivos, numWebhooks) {
       const grupos = Array.from({length: numWebhooks}, () => []);
       archivos.forEach((archivo, i) => {
         grupos[i % numWebhooks].push(archivo);
       });
-      return grupos.flat(); // Aplana manteniendo el orden
+      return grupos.flat();
     }
 
     async function procesarEnvio() {
@@ -164,12 +191,12 @@
           const res = await fetch(webhook, { method: 'POST', body: formData });
           if (res.ok) {
             enviados.add(file.name);
-            mostrarStatus(`✅ Enviado correctamente: ${titulo}`, 'success');
+            mostrarStatus(`✅ Enviado: ${titulo}`, 'success');
           } else {
-            mostrarError(`Error ${res.status} → ${file.name}`);
+            mostrarError(`Error ${res.status} en ${file.name}`);
           }
         } catch (err) {
-          mostrarError(`Fallo de conexión en ${file.name}`);
+          mostrarError(`Error de conexión en ${file.name}`);
         }
 
         indexActual++;
@@ -178,8 +205,8 @@
         }
       }
 
-      if (enviando) mostrarStatus(`¡Finalizado! Se enviaron ${enviados.size} archivos.`, 'success');
-      else mostrarStatus('Envío detenido.', 'success');
+      if (enviando) mostrarStatus(`¡Terminado!\nSe enviaron ${enviados.size} archivos correctamente.`, 'success');
+      else mostrarStatus('Envío detenido por el usuario.');
 
       document.getElementById('startBtn').disabled = false;
       document.getElementById('stopBtn').disabled = true;
@@ -192,7 +219,7 @@
 
     function mostrarStatus(texto, tipo = '') {
       const el = document.getElementById('status');
-      el.textContent = texto;
+      el.innerHTML = texto.replace(/\n/g, '<br>');
       el.className = 'status ' + (tipo === 'success' ? 'success' : tipo === 'error' ? 'error' : '');
     }
 
