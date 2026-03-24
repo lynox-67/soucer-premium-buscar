@@ -2,373 +2,231 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>NEON SENDER v2.3 - 5 Webhooks</title>
+  <title>Envío de Scripts - Modo Limpio</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
-
-    :root {
-      --neon-green: #00ff9f;
-      --neon-pink: #ff00ff;
-      --neon-blue: #00ffff;
-    }
-
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+    
     body {
+      font-family: 'Inter', Arial, sans-serif;
+      background: linear-gradient(135deg, #1e1e2e, #2a2a40);
+      color: #e0e0e0;
       margin: 0;
-      padding: 0;
-      background: #000;
-      color: var(--neon-green);
-      font-family: 'VT323', monospace;
-      overflow: hidden;
-      height: 100vh;
-      position: relative;
+      padding: 20px;
+      min-height: 100vh;
     }
-
-    canvas#matrix {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      z-index: -1;
-      opacity: 0.18;
-    }
-
     .container {
-      position: relative;
-      z-index: 10;
-      max-width: 1100px;
-      margin: 20px auto;
-      padding: 25px;
-      background: rgba(10,10,10,0.93);
-      border: 3px solid var(--neon-green);
-      box-shadow: 0 0 40px var(--neon-green), 
-                  0 0 80px var(--neon-pink);
-      border-radius: 12px;
+      max-width: 800px;
+      margin: 0 auto;
+      background: #25253a;
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
-
     h1 {
       text-align: center;
-      font-size: 46px;
-      margin: 10px 0;
-      text-shadow: 0 0 20px var(--neon-green),
-                   0 0 40px var(--neon-pink);
-      animation: glitch 1.2s infinite alternate;
+      color: #7289da;
+      margin-bottom: 30px;
     }
-
-    @keyframes glitch {
-      0% { transform: translate(0); }
-      20% { transform: translate(-4px, 3px); }
-      40% { transform: translate(3px, -3px); }
-      100% { transform: translate(0); }
-    }
-
     label {
       display: block;
-      margin: 18px 0 8px;
-      color: var(--neon-blue);
-      font-size: 20px;
-      text-shadow: 0 0 10px var(--neon-blue);
+      margin: 15px 0 8px;
+      font-weight: 500;
+      color: #b9bbbe;
     }
-
     input, button {
-      font-family: 'VT323', monospace;
-      font-size: 18px;
-      padding: 12px;
-      background: #111;
-      border: 2px solid var(--neon-green);
-      color: var(--neon-green);
-      box-shadow: 0 0 15px var(--neon-green);
-    }
-
-    .webhook-input {
       width: 100%;
-      margin-bottom: 10px;
+      padding: 14px;
+      border-radius: 8px;
+      border: none;
+      font-size: 16px;
     }
-
+    input {
+      background: #1e1e2e;
+      color: #fff;
+    }
     button {
-      background: linear-gradient(#111, #222);
-      padding: 15px 35px;
-      margin: 15px 10px;
+      background: #5865f2;
+      color: white;
+      font-weight: 600;
       cursor: pointer;
-      transition: all 0.3s;
+      margin-top: 10px;
+      transition: all 0.2s;
     }
+    button:hover { background: #4752c4; }
+    button:disabled { background: #3f3f3f; cursor: not-allowed; }
 
-    button:hover {
-      background: var(--neon-green);
-      color: #000;
-      transform: scale(1.08);
-      box-shadow: 0 0 30px var(--neon-green);
+    .btn-stop {
+      background: #f04747;
     }
+    .btn-stop:hover { background: #d13f3f; }
 
-    button:disabled {
-      background: #333;
-      color: #666;
-      cursor: not-allowed;
-    }
-
-    #status, #log {
-      background: #0a0a0a;
-      border: 2px solid #00ff9f;
+    .status {
+      margin-top: 20px;
       padding: 15px;
-      min-height: 90px;
-      max-height: 340px;
-      overflow-y: auto;
-      margin: 15px 0;
-      font-size: 17px;
-      line-height: 1.5;
-      box-shadow: inset 0 0 25px rgba(0,255,159,0.2);
+      border-radius: 8px;
+      background: #1e1e2e;
+      min-height: 60px;
+      font-size: 16px;
     }
+    .success { color: #43b581; }
+    .error { color: #f04747; }
 
-    .progress-container {
-      background: #111;
-      padding: 12px;
-      border: 2px solid var(--neon-blue);
-      margin: 20px 0;
-    }
-
-    .progress-bar {
-      height: 14px;
-      background: linear-gradient(90deg, #00ff9f, #00ffff);
-      box-shadow: 0 0 25px #00ff9f;
-      transition: width 0.4s ease;
-    }
-
-    .scanline {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: linear-gradient(transparent 50%, rgba(0,255,159,0.05) 50%);
-      background-size: 100% 6px;
-      pointer-events: none;
-      animation: scan 4s linear infinite;
-      z-index: 5;
-    }
-
-    @keyframes scan {
-      0% { transform: translateY(-100%); }
-      100% { transform: translateY(100%); }
+    .progress {
+      height: 6px;
+      background: #5865f2;
+      border-radius: 3px;
+      margin-top: 10px;
+      transition: width 0.3s;
     }
   </style>
 </head>
 <body>
-
-  <canvas id="matrix"></canvas>
-  <div class="scanline"></div>
-
   <div class="container">
-    <h1>NEON SENDER v2.3</h1>
-    <p style="text-align:center; color:#ff00ff; font-size:22px;">
-      5 WEBHOOKS • TÍTULOS ÚNICOS • REPARTICIÓN EQUILIBRADA
-    </p>
-
-    <label>1. Tus 5 Webhooks Discord (uno por línea)</label>
-    <div id="webhookContainer"></div>
+    <h1>📤 Envío Inteligente de Scripts</h1>
+    
+    <label>1. URLs de Webhooks (separadas por coma)</label>
+    <input type="text" id="webhooks" placeholder="https://discord.com/api/webhooks/... , https://...">
 
     <label>2. Selecciona la carpeta con los scripts</label>
-    <input type="file" id="folder" webkitdirectory directory multiple style="width:100%;">
+    <input type="file" id="folder" webkitdirectory directory multiple>
 
-    <label>3. Delay entre envíos (ms)</label>
-    <input type="number" id="delay" value="2800" min="1000" step="100" style="width:220px;">
+    <label>3. Delay entre envíos (ms) - Recomendado 2500+</label>
+    <input type="number" id="delay" value="2500" min="1000" step="500">
 
-    <div style="text-align:center;">
-      <button id="startBtn" onclick="iniciarEnvio()">▶ INICIAR TRANSMISIÓN</button>
-      <button id="stopBtn" onclick="detenerEnvio()" disabled>⛔ DETENER</button>
-    </div>
+    <button id="startBtn" onclick="iniciarEnvio()">🚀 Comenzar Envío</button>
+    <button id="stopBtn" class="btn-stop" onclick="detenerEnvio()" disabled>⏹ Detener Envío</button>
 
-    <div class="progress-container">
-      <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-        <span>PROGRESO</span>
-        <span id="progressText">0 / 0 (0%)</span>
-      </div>
-      <div style="background:#222; height:14px;">
-        <div id="progressBar" class="progress-bar" style="width:0%"></div>
-      </div>
-    </div>
-
-    <label>ESTADO DEL SISTEMA</label>
-    <div id="status">Listo • Esperando carpeta y webhooks...</div>
-
-    <label>LOG EN TIEMPO REAL</label>
-    <div id="log"></div>
+    <div class="status" id="status">Listo para analizar y enviar...</div>
+    <div class="progress" id="progress" style="width: 0%"></div>
   </div>
 
   <script>
-    // Matrix Rain Background
-    const canvas = document.getElementById('matrix');
-    const ctx = canvas.getContext('2d');
-    let w = canvas.width = window.innerWidth;
-    let h = canvas.height = window.innerHeight;
-    const chars = "01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワン";
-    const fontSize = 14;
-    let columns = Math.floor(w / fontSize);
-    let drops = new Array(columns).fill(1);
-
-    function drawMatrix() {
-      ctx.fillStyle = 'rgba(0,0,0,0.07)';
-      ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = '#00ff9f';
-      ctx.font = fontSize + 'px VT323';
-      for (let i = 0; i < drops.length; i++) {
-        const text = chars[Math.floor(Math.random() * chars.length)];
-        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-        if (drops[i] * fontSize > h && Math.random() > 0.975) drops[i] = 0;
-        drops[i]++;
-      }
-    }
-    setInterval(drawMatrix, 35);
-
-    window.addEventListener('resize', () => {
-      w = canvas.width = window.innerWidth;
-      h = canvas.height = window.innerHeight;
-      columns = Math.floor(w / fontSize);
-      drops = new Array(columns).fill(1);
-    });
-
-    // Crear solo 5 webhooks
-    function createWebhooks() {
-      const container = document.getElementById('webhookContainer');
-      container.innerHTML = '';
-      for (let i = 1; i <= 5; i++) {
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.className = 'webhook-input';
-        input.placeholder = `Webhook #${i} → https://discord.com/api/webhooks/...`;
-        container.appendChild(input);
-        container.appendChild(document.createElement('br'));
-      }
-    }
-    createWebhooks();
-
     let enviando = false;
     let archivosPendientes = [];
+    let enviados = new Set();
     let indexActual = 0;
     let webhooks = [];
-    let delayMs = 2800;
-    let enviadosCount = 0;
-
-    function log(msg, color = '#00ff9f') {
-      const logDiv = document.getElementById('log');
-      if (logDiv.children.length > 70) logDiv.removeChild(logDiv.firstChild);
-      const line = document.createElement('div');
-      line.style.color = color;
-      line.textContent = `> ${msg}`;
-      logDiv.appendChild(line);
-      logDiv.scrollTop = logDiv.scrollHeight;
-    }
+    let delayMs = 2500;
 
     async function iniciarEnvio() {
-      document.getElementById('log').innerHTML = '';
-      delayMs = parseInt(document.getElementById('delay').value) || 2800;
-
-      const inputs = document.querySelectorAll('.webhook-input');
-      webhooks = Array.from(inputs)
-        .map(i => i.value.trim())
-        .filter(u => u.startsWith('https://discord.com/api/webhooks/'));
-
-      if (webhooks.length === 0) return mostrarError('Ingresa al menos un webhook válido.');
-
+      const webhooksStr = document.getElementById('webhooks').value.trim();
+      delayMs = parseInt(document.getElementById('delay').value) || 2500;
       const folderInput = document.getElementById('folder');
-      if (folderInput.files.length === 0) return mostrarError('Selecciona una carpeta.');
 
-      const titleMap = new Map();
-      let duplicates = 0;
+      if (!webhooksStr) return mostrarError('Por favor ingresa al menos un webhook.');
+      webhooks = webhooksStr.split(',').map(u => u.trim()).filter(u => u.startsWith('https://discord.com/api/webhooks/'));
 
-      mostrarStatus('ESCANEANDO ARCHIVOS Y DETECTANDO TÍTULOS ÚNICOS...');
-      log('Iniciando escaneo...', '#ffff00');
+      if (webhooks.length === 0) return mostrarError('Ningún webhook válido detectado.');
+      if (folderInput.files.length === 0) return mostrarError('Selecciona una carpeta con archivos.');
 
-      for (let file of folderInput.files) {
-        const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
-        if (ext !== '.txt' && ext !== '.lua') continue;
+      // Filtrar y analizar archivos
+      let candidatos = Array.from(folderInput.files).filter(file => 
+        (file.name.endsWith('.txt') || file.name.endsWith('.lua')) && 
+        file.size > 0 && 
+        !enviados.has(file.name)
+      );
 
+      archivosPendientes = [];
+      mostrarStatus('Analizando archivos en busca de TitleLabel.Text = ...', 'normal');
+
+      for (let file of candidatos) {
         try {
-          const texto = await file.text().then(t => t.slice(0, 1000));
+          const texto = await file.text();
           const match = texto.match(/TitleLabel\.Text\s*=\s*["']?([^"'\n\r;]+)["']?/i);
           if (match && match[1].trim()) {
-            const titulo = match[1].trim();
-            if (!titleMap.has(titulo)) {
-              file.detectedName = titulo;
-              titleMap.set(titulo, file);
-            } else {
-              duplicates++;
-            }
+            file.detectedName = match[1].trim();
+            archivosPendientes.push(file);
           }
-        } catch(e) {}
+        } catch (e) {}
       }
 
-      archivosPendientes = Array.from(titleMap.values());
+      if (archivosPendientes.length === 0) 
+        return mostrarError('No se encontraron archivos con "TitleLabel.Text ="');
 
-      if (archivosPendientes.length === 0) {
-        return mostrarError('No se encontraron títulos con TitleLabel.Text = ...');
-      }
+      // Repartir equitativamente entre webhooks
+      archivosPendientes = repartirArchivos(archivosPendientes, webhooks.length);
 
       enviando = true;
       document.getElementById('startBtn').disabled = true;
       document.getElementById('stopBtn').disabled = false;
-
-      mostrarStatus(`TRANSMISIÓN INICIADA • ${archivosPendientes.length} títulos ÚNICOS • ${duplicates} duplicados omitidos`);
-      log(`Repartiendo ${archivosPendientes.length} títulos únicos en ${webhooks.length} webhooks...`, '#00ffff');
+      mostrarStatus(`Encontrados ${archivosPendientes.length} scripts válidos.\nRepartiendo entre ${webhooks.length} webhooks...`, 'normal');
 
       indexActual = 0;
-      enviadosCount = 0;
       await procesarEnvio();
     }
 
+    // Función para repartir archivos de forma equitativa
+    function repartirArchivos(archivos, numWebhooks) {
+      const repartidos = Array.from({length: numWebhooks}, () => []);
+      archivos.forEach((archivo, i) => {
+        repartidos[i % numWebhooks].push(archivo);
+      });
+      // Aplanar manteniendo el orden por webhook
+      return repartidos.flat();
+    }
+
     async function procesarEnvio() {
-      while (enviando && indexActual < archivosPendientes.length) {
+      const total = archivosPendientes.length;
+
+      while (enviando && indexActual < total) {
         const file = archivosPendientes[indexActual];
-        const webhookIdx = indexActual % webhooks.length;
+        const webhookIdx = Math.floor(indexActual / Math.ceil(total / webhooks.length)) % webhooks.length;
+        const webhook = webhooks[webhookIdx];
+
         const titulo = file.detectedName;
+        const progreso = Math.round(((indexActual + 1) / total) * 100);
 
-        const porcentaje = Math.round(((indexActual + 1) / archivosPendientes.length) * 100);
-        document.getElementById('progressBar').style.width = porcentaje + '%';
-        document.getElementById('progressText').textContent = `${indexActual + 1} / ${archivosPendientes.length} (${porcentaje}%)`;
-
-        mostrarStatus(`ENVIANDO [${indexActual+1}/${archivosPendientes.length}] → Webhook #${webhookIdx+1}`);
-        log(`[${indexActual+1}] ${file.name} → Webhook #${webhookIdx+1} | "${titulo}"`, '#00ff9f');
+        mostrarStatus(`Enviando ${indexActual + 1}/${total} → ${titulo}`, 'normal');
+        document.getElementById('progress').style.width = progreso + '%';
 
         const formData = new FormData();
         formData.append('payload_json', JSON.stringify({ content: titulo }));
         formData.append('files[0]', file);
 
         try {
-          const res = await fetch(webhooks[webhookIdx], { method: 'POST', body: formData });
+          const res = await fetch(webhook, { method: 'POST', body: formData });
           if (res.ok) {
-            enviadosCount++;
-            log(`✓ ÉXITO → Webhook #${webhookIdx+1}`, '#00ff00');
+            enviados.add(file.name);
+            mostrarStatus(`✅ Enviado: ${titulo}`, 'success');
           } else {
-            log(`✗ ERROR ${res.status}`, '#ff4444');
+            mostrarError(`Error ${res.status} en ${file.name}`);
           }
         } catch (err) {
-          log(`✗ FALLÓ: ${err.message}`, '#ff4444');
+          mostrarError(`Fallo en ${file.name}: ${err.message}`);
         }
 
         indexActual++;
-
-        const currentDelay = (indexActual < 40) ? delayMs : Math.max(1100, delayMs - 700);
-        if (enviando && indexActual < archivosPendientes.length) {
-          await new Promise(r => setTimeout(r, currentDelay));
+        if (enviando && indexActual < total) {
+          await new Promise(r => setTimeout(r, delayMs));
         }
       }
 
       if (enviando) {
-        mostrarStatus(`¡COMPLETADO! Se enviaron ${enviadosCount} títulos únicos repartidos en 5 webhooks.`);
-        log('=== TRANSMISIÓN FINALIZADA CON ÉXITO ===', '#00ffff');
+        mostrarStatus(`¡Envío completado! Se enviaron ${enviados.size} archivos.`, 'success');
+      } else {
+        mostrarStatus('Envío detenido por el usuario.', 'normal');
       }
 
       document.getElementById('startBtn').disabled = false;
       document.getElementById('stopBtn').disabled = true;
+      document.getElementById('progress').style.width = '100%';
     }
 
     function detenerEnvio() {
       enviando = false;
-      mostrarStatus('TRANSMISIÓN DETENIDA');
-      log('=== DETENIDO POR EL USUARIO ===', '#ffff00');
+      mostrarStatus('Deteniendo envío...', 'normal');
     }
 
-    function mostrarStatus(msg) {
-      document.getElementById('status').textContent = msg;
+    function mostrarStatus(texto, tipo = 'normal') {
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = texto;
+      statusEl.className = 'status ' + (tipo === 'success' ? 'success' : tipo === 'error' ? 'error' : '');
     }
 
-    function mostrarError(msg) {
-      document.getElementById('status').innerHTML = `<span style="color:#ff0000;">ERROR: ${msg}</span>`;
+    function mostrarError(texto) {
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = texto;
+      statusEl.className = 'status error';
     }
   </script>
 </body>
